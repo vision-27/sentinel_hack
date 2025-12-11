@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Call, CallWithContext } from '../types';
 import { Badge } from './Badge';
 import { getElapsedTime } from '../lib/utils';
@@ -77,22 +77,13 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
 
             <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {call.severity_score > 0 && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${
-                          call.severity_score >= 80
-                            ? 'bg-red-500'
-                            : call.severity_score >= 60
-                              ? 'bg-orange-500'
-                              : 'bg-yellow-500'
-                        }`}
-                        style={{ width: `${call.severity_score}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-600">{call.severity_score}</span>
-                  </div>
+                {call.impact_category && call.impact_category !== 'None' && (
+                  <Badge 
+                    variant={call.impact_category === 'High' ? 'danger' : call.impact_category === 'Medium' ? 'warning' : 'warning'} 
+                    size="sm"
+                  >
+                    Impact: {call.impact_category}
+                  </Badge>
                 )}
               </div>
 

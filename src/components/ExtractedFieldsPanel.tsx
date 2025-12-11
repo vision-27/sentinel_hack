@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { CallWithContext, ExtractedField } from '../types';
+import { CallWithContext } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
-import { Button, Badge } from './index';
-import { Edit2, Lock, Unlock, CheckCircle } from 'lucide-react';
+import { Badge } from './index';
+import { Lock, Unlock, CheckCircle } from 'lucide-react';
 import { confidenceColor, formatConfidence } from '../lib/utils';
-import { supabase } from '../lib/supabase';
 
 interface ExtractedFieldsPanelProps {
   call: CallWithContext;
@@ -17,7 +15,8 @@ export default function ExtractedFieldsPanel({ call }: ExtractedFieldsPanelProps
     const labels: Record<string, string> = {
       incident_type: 'Incident Type',
       location: 'Location',
-      severity: 'Severity',
+      severity: 'Impact Category',
+      impact_category: 'Impact Category',
       weapons: 'Weapons Present',
       victims: 'Number of Victims',
       medical_info: 'Medical Information',

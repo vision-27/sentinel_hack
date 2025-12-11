@@ -3,3 +3,4 @@ export { Button } from './Button';
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Modal } from './Modal';
 export { Input, TextArea } from './Input';
+export { default as MapView } from './MapView';

@@ -1,4 +1,4 @@
-import { CallPriority, CallStatus, WeaponsPresent } from '../types';
+import { CallPriority, CallStatus, ImpactCategory } from '../types';
 
 export function formatISODate(isoString: string): string {
   return new Date(isoString).toLocaleString();
@@ -45,11 +45,32 @@ export function getPriorityColor(priority: CallPriority): string {
   }
 }
 
-export function getSeverityColor(score: number): string {
-  if (score >= 80) return 'bg-red-500';
-  if (score >= 60) return 'bg-orange-500';
-  if (score >= 40) return 'bg-yellow-500';
-  return 'bg-green-500';
+export function getImpactColor(category: ImpactCategory): string {
+  switch (category) {
+    case 'High':
+      return 'bg-red-500';
+    case 'Medium':
+      return 'bg-orange-500';
+    case 'Low':
+      return 'bg-yellow-500';
+    case 'None':
+    default:
+      return 'bg-green-500';
+  }
+}
+
+export function getImpactBadgeColor(category: ImpactCategory): string {
+  switch (category) {
+    case 'High':
+      return 'bg-red-100 text-red-800 border-red-300';
+    case 'Medium':
+      return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'Low':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'None':
+    default:
+      return 'bg-green-100 text-green-800 border-green-300';
+  }
 }
 
 export function getStatusBadge(status: CallStatus): { label: string; color: string } {
@@ -75,6 +96,14 @@ export function confidenceColor(confidence: number): string {
 export function formatConfidence(confidence?: number): string {
   if (confidence === undefined) return 'N/A';
   return `${Math.round(confidence * 100)}%`;
+}
+
+export function getSeverityColor(score?: number): string {
+  if (score === undefined) return 'bg-gray-500';
+  if (score >= 80) return 'bg-red-500';
+  if (score >= 60) return 'bg-orange-500';
+  if (score >= 40) return 'bg-yellow-500';
+  return 'bg-green-500';
 }
 
 export function highlightCriticalKeywords(text: string): string {

@@ -1,6 +1,7 @@
 export type ResponderRole = 'dispatcher' | 'supervisor' | 'admin';
 export type CallStatus = 'ai_handling' | 'human_active' | 'closed';
 export type CallPriority = 'low' | 'medium' | 'high' | 'critical';
+export type ImpactCategory = 'None' | 'Low' | 'Medium' | 'High';
 export type TranscriptSpeaker = 'caller' | 'ai' | 'responder';
 export type ActionType = 'dispatch' | 'note' | 'field_edit' | 'transfer' | 'mark_safe' | 'escalate' | 'redact' | 'attachment';
 export type LocationAccuracy = 'exact' | 'approximate' | 'gps_only';
@@ -31,8 +32,9 @@ export interface Call {
   location_lat?: number;
   location_lon?: number;
   location_accuracy: LocationAccuracy;
-  severity_score: number;
+  impact_category: ImpactCategory;
   ai_confidence_avg: number;
+  severity_score?: number;
   assigned_responder_id?: string;
   number_of_victims: number;
   weapons_present: WeaponsPresent;

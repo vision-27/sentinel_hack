@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, AlertCircle, Menu, X } from 'lucide-react';
 import { useCall } from '../contexts/CallContext';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Call, CallWithContext } from '../types';
 import { Button, Badge } from '../components';
 import { formatISODate, getStatusBadge } from '../lib/utils';
@@ -14,6 +14,10 @@ export default function DashboardLayout() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setError('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file');
+      return;
+    }
     loadCalls();
     const cleanup = subscribeToCallUpdates();
     return cleanup;
@@ -49,8 +53,8 @@ export default function DashboardLayout() {
         },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
-            setCalls((prevCalls) =>
-              prevCalls.map((call) =>
+            setCalls((prevCalls: Call[]) =>
+              prevCalls.map((call: Call) =>
                 call.id === (payload.new as Call).id ? (payload.new as Call) : call
               )
             );
@@ -59,7 +63,7 @@ export default function DashboardLayout() {
               setActiveCall({ ...activeCall, ...(payload.new as Call) });
             }
           } else if (payload.eventType === 'INSERT') {
-            setCalls((prevCalls) => [payload.new as Call, ...prevCalls]);
+            setCalls((prevCalls: Call[]) => [payload.new as Call, ...prevCalls]);
           }
         }
       )
@@ -101,6 +105,13 @@ export default function DashboardLayout() {
       setIsLoading(false);
     }
   };
+
+  // Find calls that need attention: Medium/High impact with AI active
+  const highImpactAICalls = calls.filter(
+    (call) =>
+      call.status === 'ai_handling' &&
+      (call.impact_category === 'Medium' || call.impact_category === 'High')
+  );
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -147,6 +158,33 @@ export default function DashboardLayout() {
         </div>
       </header>
 
+      {highImpactAICalls.length > 0 && (
+        <div className="bg-orange-50 border-b border-orange-200 px-6 py-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="text-orange-600 mt-0.5 flex-shrink-0" size={20} />
+            <div className="flex-1">
+              <h3 className="font-semibold text-orange-900 mb-1">
+                Attention Required: {highImpactAICalls.length} call{highImpactAICalls.length !== 1 ? 's' : ''} with {highImpactAICalls.some(c => c.impact_category === 'High') ? 'High' : 'Medium'} impact being handled by AI
+              </h3>
+              <p className="text-sm text-orange-800">
+                You may need to take over these calls. Review the call list and consider transitioning to human handling.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {highImpactAICalls.map((call) => (
+                  <button
+                    key={call.id}
+                    onClick={() => handleSelectCall(call)}
+                    className="text-xs px-2 py-1 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded border border-orange-300 transition-colors"
+                  >
+                    {call.call_id} - {call.impact_category}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <aside
           className={`${
@@ -159,7 +197,20 @@ export default function DashboardLayout() {
         <main className="flex-1 overflow-y-auto">
           {error && (
             <div className="m-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-              {error}
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5" size={20} />
+                <div>
+                  <h3 className="font-semibold mb-1">Configuration Error</h3>
+                  <p>{error}</p>
+                  <p className="mt-2 text-sm">
+                    Create a <code className="bg-red-100 px-1 rounded">.env</code> file in the project root with:
+                  </p>
+                  <pre className="mt-2 bg-red-100 p-2 rounded text-xs overflow-x-auto">
+{`VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key`}
+                  </pre>
+                </div>
+              </div>
             </div>
           )}
 

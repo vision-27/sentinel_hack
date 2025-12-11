@@ -1,7 +1,6 @@
-import React from 'react';
 import { CallWithContext } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
-import { Badge } from './index';
+import { Badge, MapView } from './index';
 import { MapPin, Activity, Zap, Clock } from 'lucide-react';
 import { getElapsedTime, getSeverityColor, confidenceColor, formatConfidence } from '../lib/utils';
 import LiveTranscript from './LiveTranscript';
@@ -107,6 +106,8 @@ export default function CallDetail({ call }: CallDetailProps) {
             </Card>
           </div>
         </div>
+
+        <MapView call={call} height="350px" />
 
         <LiveTranscript call={call} />
       </div>

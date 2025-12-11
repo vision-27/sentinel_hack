@@ -8,10 +8,10 @@ INSERT INTO responders (id, email, name, role, phone, jurisdiction_id, active) V
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert sample calls
-INSERT INTO calls (id, call_id, status, priority, caller_phone, caller_name, source_type, incident_type, location_text, location_lat, location_lon, location_accuracy, severity_score, ai_confidence_avg, assigned_responder_id, number_of_victims, weapons_present, medical_emergency, started_at) VALUES
-('660e8400-e29b-41d4-a716-446655440001', 'CALL-2025-001', 'human_active', 'critical', '+1-555-1001', 'John Smith', 'phone', 'Medical Emergency', '123 Main Street, Downtown', 40.7128, -74.0060, 'exact', 92, 0.87, '550e8400-e29b-41d4-a716-446655440001', 1, 'no', true, NOW() - INTERVAL '3 minutes'),
-('660e8400-e29b-41d4-a716-446655440002', 'CALL-2025-002', 'ai_handling', 'high', '+1-555-1002', 'Jane Doe', 'phone', 'Fire', '456 Oak Avenue, Westside', 40.7282, -74.0776, 'approximate', 78, 0.92, '550e8400-e29b-41d4-a716-446655440001', 3, 'unknown', false, NOW() - INTERVAL '7 minutes'),
-('660e8400-e29b-41d4-a716-446655440003', 'CALL-2025-003', 'ai_handling', 'medium', '+1-555-1003', 'Robert Wilson', 'phone', 'Traffic Accident', '789 Elm Street, Eastside', 40.7489, -73.9680, 'gps_only', 55, 0.75, '550e8400-e29b-41d4-a716-446655440003', 2, 'no', false, NOW() - INTERVAL '12 minutes')
+INSERT INTO calls (id, call_id, status, priority, caller_phone, caller_name, source_type, incident_type, location_text, location_lat, location_lon, location_accuracy, impact_category, ai_confidence_avg, assigned_responder_id, number_of_victims, weapons_present, medical_emergency, started_at) VALUES
+('660e8400-e29b-41d4-a716-446655440001', 'CALL-2025-001', 'human_active', 'critical', '+1-555-1001', 'John Smith', 'phone', 'Medical Emergency', '123 Main Street, Downtown', 40.7128, -74.0060, 'exact', 'High', 0.87, '550e8400-e29b-41d4-a716-446655440001', 1, 'no', true, NOW() - INTERVAL '3 minutes'),
+('660e8400-e29b-41d4-a716-446655440002', 'CALL-2025-002', 'ai_handling', 'high', '+1-555-1002', 'Jane Doe', 'phone', 'Fire', '456 Oak Avenue, Westside', 40.7282, -74.0776, 'approximate', 'High', 0.92, '550e8400-e29b-41d4-a716-446655440001', 3, 'unknown', false, NOW() - INTERVAL '7 minutes'),
+('660e8400-e29b-41d4-a716-446655440003', 'CALL-2025-003', 'ai_handling', 'medium', '+1-555-1003', 'Robert Wilson', 'phone', 'Traffic Accident', '789 Elm Street, Eastside', 40.7489, -73.9680, 'gps_only', 'Medium', 0.75, '550e8400-e29b-41d4-a716-446655440003', 2, 'no', false, NOW() - INTERVAL '12 minutes')
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert transcript blocks for CALL-2025-001
@@ -46,7 +46,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO extracted_fields (call_id, field_name, field_value, confidence, locked_for_override) VALUES
 ('660e8400-e29b-41d4-a716-446655440001', 'incident_type', 'Medical Emergency', 0.95, false),
 ('660e8400-e29b-41d4-a716-446655440001', 'location', '123 Main Street, Downtown', 0.92, false),
-('660e8400-e29b-41d4-a716-446655440001', 'severity', '92', 0.87, false),
+('660e8400-e29b-41d4-a716-446655440001', 'impact_category', 'High', 0.87, false),
 ('660e8400-e29b-41d4-a716-446655440001', 'victims', '1', 0.90, false),
 ('660e8400-e29b-41d4-a716-446655440001', 'medical_info', 'Not breathing, unconscious', 0.88, false)
 ON CONFLICT (call_id, field_name) DO NOTHING;
@@ -55,7 +55,7 @@ ON CONFLICT (call_id, field_name) DO NOTHING;
 INSERT INTO extracted_fields (call_id, field_name, field_value, confidence, locked_for_override) VALUES
 ('660e8400-e29b-41d4-a716-446655440002', 'incident_type', 'Fire', 0.98, false),
 ('660e8400-e29b-41d4-a716-446655440002', 'location', '456 Oak Avenue, Westside', 0.85, false),
-('660e8400-e29b-41d4-a716-446655440002', 'severity', '78', 0.80, false),
+('660e8400-e29b-41d4-a716-446655440002', 'impact_category', 'High', 0.80, false),
 ('660e8400-e29b-41d4-a716-446655440002', 'victims', '3', 0.75, false),
 ('660e8400-e29b-41d4-a716-446655440002', 'threats', 'Smoke, potential structural damage', 0.82, false)
 ON CONFLICT (call_id, field_name) DO NOTHING;
@@ -64,6 +64,6 @@ ON CONFLICT (call_id, field_name) DO NOTHING;
 INSERT INTO extracted_fields (call_id, field_name, field_value, confidence, locked_for_override) VALUES
 ('660e8400-e29b-41d4-a716-446655440003', 'incident_type', 'Traffic Accident', 0.93, false),
 ('660e8400-e29b-41d4-a716-446655440003', 'location', '789 Elm Street, Eastside', 0.70, false),
-('660e8400-e29b-41d4-a716-446655440003', 'severity', '55', 0.75, false),
+('660e8400-e29b-41d4-a716-446655440003', 'impact_category', 'Medium', 0.75, false),
 ('660e8400-e29b-41d4-a716-446655440003', 'victims', '2', 0.85, false)
 ON CONFLICT (call_id, field_name) DO NOTHING;

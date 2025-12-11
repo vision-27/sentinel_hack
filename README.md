@@ -6,6 +6,7 @@ A real-time web dashboard for emergency dispatchers and first responders that re
 
 ### Core Functionality
 - **Real-time Call Management**: Monitor multiple active emergency calls with priority sorting
+- **Interactive Location Maps**: View call locations on Google Maps with priority-coded markers
 - **Live Transcript Streaming**: View AI and caller conversations in real-time with auto-scroll
 - **AI-Extracted Fields**: Incident type, location, severity, victim count, and threat assessment
 - **Critical Information Panel**: Quick snapshot of incident details, severity score, and recommended actions
@@ -25,6 +26,7 @@ A real-time web dashboard for emergency dispatchers and first responders that re
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL + Realtime)
+- **Maps**: Google Maps API (@vis.gl/react-google-maps)
 - **Icons**: Lucide React
 - **Build Tool**: Vite
 - **Authentication**: Supabase Auth (ready for SSO integration)
@@ -34,6 +36,7 @@ A real-time web dashboard for emergency dispatchers and first responders that re
 ### Prerequisites
 - Node.js 18+ and npm
 - Supabase account (already configured)
+- Google Maps API key (for location mapping)
 
 ### Installation
 
@@ -42,11 +45,19 @@ A real-time web dashboard for emergency dispatchers and first responders that re
 npm install
 ```
 
-2. Environment variables are already configured in `.env`:
+2. Create a `.env` file with the following variables:
 ```
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
+
+**Getting a Google Maps API Key:**
+- Go to [Google Cloud Console](https://console.cloud.google.com/google/maps-apis)
+- Create a new project or select an existing one
+- Enable the "Maps JavaScript API"
+- Create credentials → API Key
+- Copy the API key to your `.env` file
 
 3. Database is already set up with:
    - Tables: calls, transcript_blocks, extracted_fields, responders, call_actions, audit_logs
@@ -80,6 +91,7 @@ src/
 │   ├── Card.tsx        # Container cards
 │   ├── Modal.tsx       # Dialog modals
 │   ├── Input.tsx       # Form inputs
+│   ├── MapView.tsx     # Google Maps integration
 │   ├── CallList.tsx    # Sidebar call queue
 │   ├── CallDetail.tsx  # Main call view
 │   ├── LiveTranscript.tsx      # Real-time transcript

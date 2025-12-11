@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Call, TranscriptBlock, ExtractedField, CallWithContext } from '../types';
 
 interface CallContextType {
   activeCall: CallWithContext | null;
   calls: Call[];
   setActiveCall: (call: CallWithContext | null) => void;
-  setCalls: (calls: Call[]) => void;
+  setCalls: (calls: Call[] | ((prevCalls: Call[]) => Call[])) => void;
   addTranscriptBlock: (block: TranscriptBlock) => void;
   updateExtractedField: (field: ExtractedField) => void;
   updateCall: (call: Partial<Call>) => void;
