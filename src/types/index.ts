@@ -45,6 +45,7 @@ export interface Call {
   closed_at?: string;
   recording_url?: string;
   notes?: string;
+  hasMarkSafeAction?: boolean;
 }
 
 export interface TranscriptBlock {

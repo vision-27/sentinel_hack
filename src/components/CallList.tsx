@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Call, CallWithContext } from '../types';
 import { Badge } from './Badge';
 import { getElapsedTime } from '../lib/utils';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, UserCheck } from 'lucide-react';
 
 interface CallListProps {
   calls: Call[];
@@ -56,13 +56,19 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
             }`}
           >
             <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="info" size="sm">
                   {call.incident_type || 'Unknown'}
                 </Badge>
                 <Badge variant={call.priority === 'critical' ? 'danger' : 'warning'} size="sm">
                   {call.priority.toUpperCase()}
                 </Badge>
+                {call.hasMarkSafeAction && (
+                  <Badge variant="success" size="sm" className="flex items-center gap-1">
+                    <UserCheck size={12} />
+                    Safe
+                  </Badge>
+                )}
               </div>
               <div className="text-xs text-gray-500">{getElapsedTime(call.created_at)}</div>
             </div>

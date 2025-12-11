@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Phone, AlertCircle, Menu, X } from 'lucide-react';
 import { useCall } from '../contexts/CallContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Call, CallWithContext } from '../types';
+import { Call, CallWithContext, CallAction } from '../types';
 import { Button, Badge } from '../components';
 import { formatISODate, getStatusBadge } from '../lib/utils';
 import CallList from '../components/CallList';
@@ -12,6 +12,7 @@ export default function DashboardLayout() {
   const { activeCall, setActiveCall, calls, setCalls, isLoading, setIsLoading } = useCall();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeCallRef = useRef(activeCall);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -19,9 +20,55 @@ export default function DashboardLayout() {
       return;
     }
     loadCalls();
-    const cleanup = subscribeToCallUpdates();
-    return cleanup;
+    const cleanup1 = subscribeToCallUpdates();
+    const cleanup2 = subscribeToCallActionsUpdates();
+    return () => {
+      cleanup1();
+      cleanup2();
+    };
   }, []);
+
+  // Keep ref in sync with activeCall
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  // Subscribe to call_actions updates for the active call
+  useEffect(() => {
+    if (!activeCall) return;
+
+    const callId = activeCall.id;
+    const subscription = supabase
+      .channel(`call-actions-${callId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'call_actions',
+          filter: `call_id=eq.${callId}`,
+        },
+        (payload) => {
+          const newAction = payload.new as CallAction;
+          // Use ref to get current activeCall value
+          const currentCall = activeCallRef.current;
+          if (!currentCall || currentCall.id !== callId) return;
+          // Check if action already exists to avoid duplicates
+          const actionExists = currentCall.actions?.some((a: CallAction) => a.id === newAction.id);
+          if (actionExists) return;
+          // Update the call with the new action
+          setActiveCall({
+            ...currentCall,
+            actions: [...(currentCall.actions || []), newAction],
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [activeCall?.id, setActiveCall]);
 
   const loadCalls = async () => {
     setIsLoading(true);
@@ -29,11 +76,36 @@ export default function DashboardLayout() {
       const { data, error } = await supabase
         .from('calls')
         .select('*')
-        .in('status', ['ai_handling', 'human_active'])
+        .in('status', ['ai_handling', 'human_active', 'closed'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCalls(data || []);
+      
+      // Fetch mark_safe actions for all calls
+      const callIds = (data || []).map(call => call.id);
+      if (callIds.length > 0) {
+        const { data: actionsData } = await supabase
+          .from('call_actions')
+          .select('call_id, action_type')
+          .in('call_id', callIds)
+          .eq('action_type', 'mark_safe');
+        
+        // Create a map of call_id -> has mark_safe action
+        const markSafeMap = new Map<string, boolean>();
+        (actionsData || []).forEach(action => {
+          markSafeMap.set(action.call_id, true);
+        });
+        
+        // Add mark_safe flag to calls
+        const callsWithMarkSafe = (data || []).map(call => ({
+          ...call,
+          hasMarkSafeAction: markSafeMap.has(call.id),
+        }));
+        
+        setCalls(callsWithMarkSafe);
+      } else {
+        setCalls([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load calls');
     } finally {
@@ -51,20 +123,68 @@ export default function DashboardLayout() {
           schema: 'public',
           table: 'calls',
         },
-        (payload) => {
+        async (payload) => {
           if (payload.eventType === 'UPDATE') {
+            const updatedCall = payload.new as Call;
+            // Preserve hasMarkSafeAction flag if it exists
             setCalls((prevCalls: Call[]) =>
-              prevCalls.map((call: Call) =>
-                call.id === (payload.new as Call).id ? (payload.new as Call) : call
-              )
+              prevCalls.map((call: Call) => {
+                if (call.id === updatedCall.id) {
+                  return { ...updatedCall, hasMarkSafeAction: call.hasMarkSafeAction };
+                }
+                return call;
+              })
             );
 
-            if (activeCall?.id === (payload.new as Call).id) {
-              setActiveCall({ ...activeCall, ...(payload.new as Call) });
+            if (activeCall?.id === updatedCall.id) {
+              setActiveCall({ ...activeCall, ...updatedCall });
             }
           } else if (payload.eventType === 'INSERT') {
-            setCalls((prevCalls: Call[]) => [payload.new as Call, ...prevCalls]);
+            const newCall = payload.new as Call;
+            // Check if this new call has a mark_safe action
+            const { data: actionsData } = await supabase
+              .from('call_actions')
+              .select('call_id')
+              .eq('call_id', newCall.id)
+              .eq('action_type', 'mark_safe')
+              .limit(1);
+            
+            const callWithMarkSafe = {
+              ...newCall,
+              hasMarkSafeAction: (actionsData || []).length > 0,
+            };
+            setCalls((prevCalls: Call[]) => [callWithMarkSafe, ...prevCalls]);
           }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  };
+
+  const subscribeToCallActionsUpdates = () => {
+    const subscription = supabase
+      .channel('call-actions-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'call_actions',
+          filter: 'action_type=eq.mark_safe',
+        },
+        async (payload) => {
+          const newAction = payload.new as CallAction;
+          // Update the calls list to mark this call as safe
+          setCalls((prevCalls: Call[]) =>
+            prevCalls.map((call: Call) =>
+              call.id === newAction.call_id
+                ? { ...call, hasMarkSafeAction: true }
+                : call
+            )
+          );
         }
       )
       .subscribe();
@@ -93,11 +213,14 @@ export default function DashboardLayout() {
         .select('*')
         .eq('call_id', call.id);
 
+      const hasMarkSafe = actions?.some(action => action.action_type === 'mark_safe') || false;
+
       setActiveCall({
         ...call,
         transcripts: transcripts || [],
         extracted_fields: fields || [],
         actions: actions || [],
+        hasMarkSafeAction: hasMarkSafe,
       } as CallWithContext);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load call details');

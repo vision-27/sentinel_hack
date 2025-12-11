@@ -33,7 +33,10 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
-      <div className={clsx('relative bg-white rounded-lg shadow-xl w-full mx-4', sizeStyles[size])}>
+      <div 
+        className={clsx('relative bg-white rounded-lg shadow-xl w-full mx-4', sizeStyles[size])}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h2 className="text-lg font-bold text-gray-900">{title}</h2>

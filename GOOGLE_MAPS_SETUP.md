@@ -118,6 +118,12 @@ interface MapViewProps {
 - Check that your call has `location_lat` and `location_lon` values
 - Verify the coordinates are valid (lat: -90 to 90, lng: -180 to 180)
 
+#### "ERR_BLOCKED_BY_CLIENT" or "gen_204" Errors
+- **This is normal and can be safely ignored!** These errors occur when ad blockers or browser extensions block Google Maps analytics requests
+- The map will still function correctly - these are just tracking/analytics requests
+- The application automatically suppresses these console errors to reduce noise
+- If you see these errors, the map is working fine; you can ignore them
+
 ## Cost Information
 
 Google Maps offers a generous free tier:

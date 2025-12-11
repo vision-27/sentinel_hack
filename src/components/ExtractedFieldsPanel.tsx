@@ -1,7 +1,7 @@
 import { CallWithContext } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { Badge } from './index';
-import { Lock, Unlock, CheckCircle } from 'lucide-react';
+import { Lock, Unlock, CheckCircle, UserCheck } from 'lucide-react';
 import { confidenceColor, formatConfidence } from '../lib/utils';
 
 interface ExtractedFieldsPanelProps {
@@ -10,6 +10,9 @@ interface ExtractedFieldsPanelProps {
 
 export default function ExtractedFieldsPanel({ call }: ExtractedFieldsPanelProps) {
   const fields = call.extracted_fields || [];
+  
+  // Check if caller has been marked safe
+  const isMarkedSafe = call.actions?.some((action) => action.action_type === 'mark_safe') || false;
 
   const getFieldLabel = (fieldName: string): string => {
     const labels: Record<string, string> = {
@@ -31,6 +34,14 @@ export default function ExtractedFieldsPanel({ call }: ExtractedFieldsPanelProps
         <CardTitle level="h3">Extracted Fields</CardTitle>
       </CardHeader>
       <CardContent>
+        {isMarkedSafe && (
+          <div className="mb-4 p-4 bg-green-100 border-2 border-green-500 rounded-lg">
+            <div className="flex items-center justify-center gap-3">
+              <UserCheck size={24} className="text-green-600" />
+              <p className="text-lg font-bold text-green-700 uppercase tracking-wide">MARKED SAFE</p>
+            </div>
+          </div>
+        )}
         {fields.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-4">No extracted fields yet</p>
         ) : (
