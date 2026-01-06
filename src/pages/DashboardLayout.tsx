@@ -4,6 +4,7 @@ import { useCall } from '../contexts/CallContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Call, CallWithContext, CallAction } from '../types';
 import { Button, Badge } from '../components';
+import { VoiceAgentButton } from '../components/VoiceAgentButton';
 import { formatISODate, getStatusBadge } from '../lib/utils';
 import CallList from '../components/CallList';
 import CallDetail from '../components/CallDetail';
@@ -257,27 +258,31 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          {activeCall && (
-            <div className="hidden md:flex items-center gap-6">
-              <div className="text-right">
-                <div className="text-sm text-gray-600">Call ID: {activeCall.call_id}</div>
-                <div className="text-xs text-gray-500">{formatISODate(activeCall.created_at)}</div>
-              </div>
+          <div className="flex items-center gap-4">
+            <VoiceAgentButton />
+            
+            {activeCall && (
+              <div className="hidden md:flex items-center gap-6 border-l border-gray-200 pl-6">
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Call ID: {activeCall.call_id}</div>
+                  <div className="text-xs text-gray-500">{formatISODate(activeCall.created_at)}</div>
+                </div>
 
-              <Badge variant={getStatusBadge(activeCall.status).color.includes('blue') ? 'info' : 'default'}>
-                {getStatusBadge(activeCall.status).label}
-              </Badge>
+                <Badge variant={getStatusBadge(activeCall.status).color.includes('blue') ? 'info' : 'default'}>
+                  {getStatusBadge(activeCall.status).label}
+                </Badge>
 
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm">
-                  Take Over
-                </Button>
-                <Button variant="danger" size="sm">
-                  <AlertCircle size={16} /> Dispatch
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm">
+                    Take Over
+                  </Button>
+                  <Button variant="danger" size="sm">
+                    <AlertCircle size={16} /> Dispatch
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 

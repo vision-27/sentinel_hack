@@ -1,0 +1,131 @@
+{
+  "name": "create_emergency_call",
+  "description": "Creates a new emergency call record in the system based on information gathered from the caller.",
+  "parameters": [
+    {
+      "id": "caller_name",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "Name of the caller if provided.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "caller_phone",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "Phone number of the caller if available.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "incident_type",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "The nature of the emergency (e.g., Fire, Car Accident, Heart Attack, Burglary).",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "location_text",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "The address or description of the location where the emergency is occurring.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "priority",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "Describes how critical a call is. Critical: immediate life threat/human takeover ASAP. High: serious threat, human should monitor. Medium: urgent but AI can handle. Low: non-urgent.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "medical_emergency",
+      "type": "boolean",
+      "value_type": "llm_prompt",
+      "description": "Whether medical attention or an ambulance is required.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "number_of_victims",
+      "type": "integer",
+      "value_type": "llm_prompt",
+      "description": "The number of people injured or in immediate danger. Default to 0 if none or unknown.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "weapons_present",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "Indicates if weapons are present at the scene.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ],
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "impact_category",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "The severity of the impact on the surroundings. High: widespread damage/multiple casualties. Medium: localized damage/few casualties. Low: minor damage. None: no damage.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": [
+        "None",
+        "Low",
+        "Medium",
+        "High"
+      ],
+      "is_system_provided": false,
+      "required": false
+    },
+    {
+      "id": "notes",
+      "type": "string",
+      "value_type": "llm_prompt",
+      "description": "A summary of the situation and any other relevant details not captured by other fields.",
+      "dynamic_variable": "",
+      "constant_value": "",
+      "enum": null,
+      "is_system_provided": false,
+      "required": false
+    }
+  ]
+}
+
