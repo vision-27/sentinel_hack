@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
@@ -11,6 +12,16 @@ const webhookApiKey =
   process.env.ELEVENLABS_WEBHOOK_API_KEY ||
   process.env.VITE_ELEVENLABS_WEBHOOK_API_KEY ||
   '';
+const supabaseUrl =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase =
+  supabaseUrl && supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey)
+    : null;
 
 app.use(
   cors({
@@ -59,12 +70,6 @@ app.post('/v1/dispatch/events', authenticate, async (req, res) => {
     }
   }
 
-  const requiredFields = ['incident_id', 'call_sid', 'event_type'];
-  const missingFields = requiredFields.filter((field) => !body[field]);
-  if (missingFields.length > 0) {
-    console.warn('[dispatch webhook] missing fields', missingFields);
-  }
-
   const eventTypes = ['location_update', 'location_confirmed', 'escalation_request'];
   if (body.event_type && !eventTypes.includes(body.event_type)) {
     console.warn('[dispatch webhook] invalid event_type', body.event_type);
@@ -90,17 +95,32 @@ app.post('/v1/dispatch/events', authenticate, async (req, res) => {
 
   const addressString = buildAddressString(body.location_json);
   if (addressString) {
+    console.log('CHECK ADDRESS STRING: ', addressString);
     locationPin = await geocodeAddress(addressString);
-    if (locationPin) {
-      console.log('[dispatch webhook] location pin resolved:', locationPin);
-    } else {
-      console.warn('[dispatch webhook] location pin not resolved');
-    }
+    console.log(locationPin);
   } else {
-    console.warn('[dispatch webhook] missing address details');
+    console.warn('[dispatch webhook] No location_json provided, skipping geocode');
   }
+  if (locationPin && supabase && body.incident_id) {
+    const { error } = await supabase
+      .from('calls')
+      .update({
+        location_lat: locationPin.lat,
+        location_lon: locationPin.lng,
+        location_text: locationPin.formatted_address,
+      })
+      .eq('call_id', body.incident_id);
 
-  console.log(locationPin);
+    if (error) {
+      console.error('[dispatch webhook] Supabase update failed', error);
+    } else {
+      console.log('[dispatch webhook] Supabase updated call location', body.incident_id);
+    }
+  } else if (locationPin && !body.incident_id) {
+    console.warn('[dispatch webhook] Missing incident_id, cannot update Supabase');
+  } else if (!supabase) {
+    console.warn('[dispatch webhook] Supabase not configured for updates');
+  }
 
   const result = sendJson(res, 200, { ok: true, event_received: true });
   return result;
@@ -115,22 +135,15 @@ function buildAddressString(locationJson) {
     return '';
   }
 
-  if (typeof locationJson === 'string') {
-    return locationJson;
-  }
-
-  const address = locationJson.address || locationJson;
+  const address = locationJson?.address || locationJson;
   if (!address || typeof address !== 'object') {
     return '';
   }
 
   const parts = [
-    address.building_number,
-    address.street_name,
-    address.district_or_barangay,
-    address.city,
-    address.region,
-    address.country,
+    address.Building_House_Number,
+    address.Street,
+    address.State_Province_Town_City
   ].filter(Boolean);
 
   const result = parts.join(' ').trim();
@@ -142,10 +155,7 @@ function buildAddressString(locationJson) {
 }
 
 async function geocodeAddress(addressString) {
-  const geocodingApiKey =
-    process.env.GOOGLE_GEOCODING_API_KEY ||
-    process.env.VITE_GOOGLE_MAPS_API_KEY ||
-    '';
+  const geocodingApiKey = 'AIzaSyDam7LCuyAVKFs23ZGcydBPGOklkQcVaKI';
 
   if (!geocodingApiKey) {
     console.warn('[dispatch webhook] Missing Google Geocoding API key');
