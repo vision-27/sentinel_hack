@@ -4,7 +4,6 @@ import { Badge, MapView } from './index';
 import { MapPin, Activity, Zap, Clock, Send, Shield, Flame, Heart } from 'lucide-react';
 import { getElapsedTime, getSeverityColor, confidenceColor, formatConfidence } from '../lib/utils';
 import LiveTranscript from './LiveTranscript';
-import ExtractedFieldsPanel from './ExtractedFieldsPanel';
 import ActionBar from './ActionBar';
 
 interface CallDetailProps {
@@ -107,7 +106,9 @@ export default function CallDetail({ call }: CallDetailProps) {
 
                 <div className="col-span-2">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Call Duration</p>
-                  <p className="text-base font-semibold text-gray-900">{getElapsedTime(call.created_at)}</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {getElapsedTime(call.created_at, call.closed_at)}
+                  </p>
                 </div>
 
               </div>
@@ -163,19 +164,19 @@ export default function CallDetail({ call }: CallDetailProps) {
               <div className="text-center">
                 <Clock className="text-green-600 mx-auto mb-2" size={24} />
                 <p className="text-xs text-gray-600 mb-1">Started</p>
-                <p className="text-xs font-bold text-gray-900">{getElapsedTime(call.started_at)}</p>
+                <p className="text-xs font-bold text-gray-900">
+                  {getElapsedTime(call.started_at, call.closed_at)}
+                </p>
               </div>
             </Card>
           </div>
         </div>
 
         <MapView call={call} height="350px" />
-
-        <LiveTranscript call={call} />
       </div>
 
       <div className="lg:col-span-1 flex flex-col gap-4 overflow-y-auto">
-        <ExtractedFieldsPanel call={call} />
+        <LiveTranscript call={call} />
       </div>
 
       <div className="lg:col-span-3">
