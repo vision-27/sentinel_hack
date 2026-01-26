@@ -1,43 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useElevenLabsAgent } from '../hooks/useElevenLabsAgent';
 import { Button } from './Button';
 import { Mic, MicOff, Activity } from 'lucide-react';
 
 export const VoiceAgentButton = () => {
-  const { status, isSpeaking, startAgent, stopAgent } = useElevenLabsAgent();
-  const [error, setError] = useState<string | null>(null);
+  const { status, isSpeaking } = useElevenLabsAgent();
+  const navigate = useNavigate();
 
   const isConnected = status === 'connected';
 
-  const handleClick = async () => {
-    setError(null);
-    try {
-      if (isConnected) {
-        await stopAgent();
-      } else {
-        await startAgent();
-      }
-    } catch (err) {
-      console.error('Failed to toggle agent:', err);
-      setError('Failed to connect to agent');
-    }
-  };
-
   return (
     <div className="flex items-center gap-2">
-      {error && (
-        <span className="text-xs text-red-500 hidden md:inline">{error}</span>
-      )}
-      
       <Button
-        variant={isConnected ? 'danger' : 'primary'}
+        variant="primary"
         size="sm"
-        onClick={handleClick}
-        className={`flex items-center gap-2 ${isConnected ? 'animate-pulse-subtle' : ''}`}
-        title={isConnected ? 'Disconnect Agent' : 'Connect to Dispatch AI'}
+        onClick={() => navigate('/call')}
+        className="flex items-center gap-2"
+        title="Open AI Dispatcher"
       >
-        {isConnected ? <MicOff size={16} /> : <Mic size={16} />}
-        {isConnected ? 'Disconnect Agent' : 'Connect AI Dispatcher'}
+        <Mic size={16} />
+        Connect AI Dispatcher
       </Button>
       
       {isConnected && (
