@@ -20,14 +20,19 @@ export function getElapsedTime(startTime: string): string {
   const start = new Date(startTime);
   const secondsElapsed = Math.floor((now.getTime() - start.getTime()) / 1000);
 
-  const hours = Math.floor(secondsElapsed / 3600);
+  const days = Math.floor(secondsElapsed / 86400);
+  const hours = Math.floor((secondsElapsed % 86400) / 3600);
   const minutes = Math.floor((secondsElapsed % 3600) / 60);
   const seconds = secondsElapsed % 60;
 
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+  const paddedHours = String(hours).padStart(2, '0');
+  const paddedMinutes = String(minutes).padStart(2, '0');
+  const paddedSeconds = String(seconds).padStart(2, '0');
+
+  if (days > 0) {
+    return `${days}d ${paddedHours}:${paddedMinutes}:${paddedSeconds}`;
   }
-  return `${minutes}m ${seconds}s`;
+  return `${paddedHours}:${paddedMinutes}:${paddedSeconds}`;
 }
 
 export function getPriorityColor(priority: CallPriority): string {
