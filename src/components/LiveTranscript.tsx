@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { CallWithContext, TranscriptBlock } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { Input } from './Input';

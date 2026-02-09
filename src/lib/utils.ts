@@ -15,10 +15,10 @@ export function getRelativeTime(isoString: string): string {
   return `${Math.floor(secondsAgo / 86400)}d ago`;
 }
 
-export function getElapsedTime(startTime: string): string {
-  const now = new Date();
+export function getElapsedTime(startTime: string, endTime?: string): string {
+  const end = endTime ? new Date(endTime) : new Date();
   const start = new Date(startTime);
-  const secondsElapsed = Math.floor((now.getTime() - start.getTime()) / 1000);
+  const secondsElapsed = Math.floor((end.getTime() - start.getTime()) / 1000);
 
   const days = Math.floor(secondsElapsed / 86400);
   const hours = Math.floor((secondsElapsed % 86400) / 3600);

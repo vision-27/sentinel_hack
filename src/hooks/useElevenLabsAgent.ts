@@ -117,6 +117,7 @@ export function useElevenLabsAgent() {
 
       await conversation.startSession({
         agentId,
+        connectionType: 'websocket',
       });
     } catch (err) {
       console.error('Failed to start conversation:', err);
@@ -126,6 +127,21 @@ export function useElevenLabsAgent() {
 
   const stopAgent = useCallback(async () => {
     await conversation.endSession();
+
+    if (currentCallIdRef.current) {
+      try {
+        await supabase
+          .from('calls')
+          .update({
+            status: 'closed',
+            closed_at: new Date().toISOString(),
+          })
+          .eq('id', currentCallIdRef.current);
+      } catch (err) {
+        console.error('Failed to update call status:', err);
+      }
+    }
+
     currentCallIdRef.current = null;
     setCallId(null);
     setTranscripts([]);

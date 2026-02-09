@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useElevenLabsAgent } from '../hooks/useElevenLabsAgent';
 import { useSentinelAgent } from '../hooks/useSentinelAgent';
 import { Button } from '../components/Button';
 import { Mic, MicOff, Phone, PhoneOff, ArrowLeft, BrainCircuit } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { TranscriptBlock } from '../types';
 
 export default function VoiceCallPage() {
   const { status, isSpeaking, startAgent, stopAgent, transcripts, callId } = useElevenLabsAgent();
@@ -51,7 +50,7 @@ export default function VoiceCallPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {isConnected && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium animate-pulse">
@@ -77,8 +76,8 @@ export default function VoiceCallPage() {
               {isConnected ? 'Call in Progress' : 'Start a Call'}
             </h2>
             <p className="text-gray-500">
-              {isConnected 
-                ? 'Speak clearly to the emergency dispatcher.' 
+              {isConnected
+                ? 'Speak clearly to the emergency dispatcher.'
                 : 'Click the button below to connect with the AI dispatcher.'}
             </p>
           </div>
@@ -88,9 +87,8 @@ export default function VoiceCallPage() {
               variant={isConnected ? 'danger' : 'primary'}
               size="lg"
               onClick={isConnected ? stopAgent : startAgent}
-              className={`w-48 h-16 rounded-full text-lg shadow-lg transition-all transform hover:scale-105 ${
-                isConnected ? 'animate-pulse-subtle' : ''
-              }`}
+              className={`w-48 h-16 rounded-full text-lg shadow-lg transition-all transform hover:scale-105 ${isConnected ? 'animate-pulse-subtle' : ''
+                }`}
             >
               {isConnected ? (
                 <>
@@ -105,21 +103,21 @@ export default function VoiceCallPage() {
               )}
             </Button>
           </div>
-          
+
           {isConnected && (
-             <div className="mt-4 text-sm text-gray-400 flex items-center justify-center gap-2">
-               {isSpeaking ? (
-                 <>
-                   <Mic className="animate-pulse text-blue-500" size={16} />
-                   <span>Agent is speaking...</span>
-                 </>
-               ) : (
-                 <>
-                   <MicOff className="text-gray-300" size={16} />
-                   <span>Listening...</span>
-                 </>
-               )}
-             </div>
+            <div className="mt-4 text-sm text-gray-400 flex items-center justify-center gap-2">
+              {isSpeaking ? (
+                <>
+                  <Mic className="animate-pulse text-blue-500" size={16} />
+                  <span>Agent is speaking...</span>
+                </>
+              ) : (
+                <>
+                  <MicOff className="text-gray-300" size={16} />
+                  <span>Listening...</span>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -129,8 +127,8 @@ export default function VoiceCallPage() {
             <h3 className="font-semibold text-gray-700">Live Transcript</h3>
             <span className="text-xs text-gray-500">{transcripts.length} messages</span>
           </div>
-          
-          <div 
+
+          <div
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto p-6 space-y-4 bg-white"
             onScroll={(e) => {
@@ -150,9 +148,8 @@ export default function VoiceCallPage() {
               transcripts.map((block, index) => (
                 <div
                   key={index} // fallback to index if id is duplicate
-                  className={`p-4 rounded-lg transition-colors ${speakerBgColors[block.speaker]} max-w-[85%] ${
-                    block.speaker === 'caller' ? 'ml-auto' : 'mr-auto'
-                  }`}
+                  className={`p-4 rounded-lg transition-colors ${speakerBgColors[block.speaker]} max-w-[85%] ${block.speaker === 'caller' ? 'ml-auto' : 'mr-auto'
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className={speakerColors[block.speaker]}>

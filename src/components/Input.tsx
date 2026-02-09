@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
               'disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed',
-              icon && 'pl-10',
+              !!icon && 'pl-10',
               error && 'border-red-300 focus:ring-red-500',
               className
             )}

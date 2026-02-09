@@ -51,9 +51,8 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
           <button
             key={call.id}
             onClick={() => onSelectCall(call)}
-            className={`w-full text-left p-4 border-b border-gray-100 transition-colors hover:bg-blue-50 ${
-              activeCall?.id === call.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''
-            }`}
+            className={`w-full text-left p-4 border-b border-gray-100 transition-colors hover:bg-blue-50 ${activeCall?.id === call.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''
+              }`}
           >
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -70,7 +69,7 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
                   </Badge>
                 )}
               </div>
-              <div className="text-xs text-gray-500">{getElapsedTime(call.created_at)}</div>
+              <div className="text-xs text-gray-500">{getElapsedTime(call.created_at, call.closed_at)}</div>
             </div>
 
             {call.caller_name && (
@@ -84,8 +83,8 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
             <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {call.impact_category && call.impact_category !== 'None' && (
-                  <Badge 
-                    variant={call.impact_category === 'High' ? 'danger' : call.impact_category === 'Medium' ? 'warning' : 'warning'} 
+                  <Badge
+                    variant={call.impact_category === 'High' ? 'danger' : call.impact_category === 'Medium' ? 'warning' : 'warning'}
                     size="sm"
                   >
                     Impact: {call.impact_category}

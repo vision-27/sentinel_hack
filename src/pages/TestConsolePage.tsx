@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSentinelAgent } from '../hooks/useSentinelAgent';
 import { TranscriptBlock } from '../types';
 import { Button } from '../components/Button';
@@ -11,7 +11,7 @@ export default function TestConsolePage() {
   const [input, setInput] = useState('');
   const [callId, setCallId] = useState<string | null>(null);
   const [incidentData, setIncidentData] = useState<any>(null);
-  
+
   // Use the hook with our local state
   const { isProcessing } = useSentinelAgent(transcripts, callId);
 
@@ -32,7 +32,7 @@ export default function TestConsolePage() {
         })
         .select()
         .single();
-      
+
       if (error) throw error;
       setCallId(data.id);
       console.log('Created test call:', data.id);
@@ -55,7 +55,7 @@ export default function TestConsolePage() {
         .select('*')
         .eq('id', callId)
         .single();
-      
+
       if (data) setIncidentData(data);
     }, 1000);
 
@@ -80,7 +80,7 @@ export default function TestConsolePage() {
   };
 
   const handleAgentResponse = () => {
-     const newBlock: TranscriptBlock = {
+    const newBlock: TranscriptBlock = {
       id: Math.random().toString(36).substring(7),
       call_id: callId || 'test',
       speaker: 'ai',
@@ -102,14 +102,14 @@ export default function TestConsolePage() {
           <h1 className="text-2xl font-bold text-gray-900">Sentinel Agent Test Console</h1>
         </div>
         <div className="flex items-center gap-3">
-           {isProcessing ? (
+          {isProcessing ? (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
               <BrainCircuit size={16} className="animate-spin" />
               Sentinel Analyzing...
             </div>
-           ) : (
+          ) : (
             <div className="text-gray-500 text-sm">Sentinel Idle</div>
-           )}
+          )}
         </div>
       </header>
 
