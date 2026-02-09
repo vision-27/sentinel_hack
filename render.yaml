@@ -1,0 +1,30 @@
+services:
+  - type: pserv
+    name: sentinel-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile.backend
+    region: oregon
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "8787"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_GEOCODING_API_KEY
+        sync: false
+
+  - type: web
+    name: sentinel-frontend
+    runtime: docker
+    dockerfilePath: ./Dockerfile.frontend
+    region: oregon
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          name: sentinel-backend
+          type: pserv
+          property: hostport
