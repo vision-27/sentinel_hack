@@ -8,6 +8,8 @@ export function useElevenLabsAgent() {
   const [transcripts, setTranscripts] = useState<TranscriptBlock[]>([]);
   const { addTranscriptBlock } = useCall();
   const currentCallIdRef = useRef<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+  const creatingCallRef = useRef(false);
   const [callId, setCallId] = useState<string | null>(null);
   const transcriptsRef = useRef<TranscriptBlock[]>([]);
 
@@ -15,12 +17,42 @@ export function useElevenLabsAgent() {
     transcriptsRef.current = transcripts;
   }, [transcripts]);
 
-  const createSkeletonCall = useCallback(async () => {
-    if (currentCallIdRef.current) return;
+  const createSkeletonCall = useCallback(async (incidentId?: string) => {
+    if (currentCallIdRef.current || creatingCallRef.current) return;
 
     try {
+      creatingCallRef.current = true;
       console.log('[createSkeletonCall] Creating initial call record...');
-      const newCallId = `CALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const newCallId = incidentId || `CALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      if (incidentId) {
+        const { data: existingCall, error: existingError } = await supabase
+          .from('calls')
+          .select('*')
+          .eq('call_id', incidentId)
+          .maybeSingle();
+
+        if (existingError) throw existingError;
+
+        if (existingCall) {
+          currentCallIdRef.current = existingCall.id;
+          setCallId(existingCall.id);
+          console.log('[createSkeletonCall] Using existing call record:', existingCall.id);
+
+          const existingTranscripts = transcriptsRef.current;
+          if (existingTranscripts.length > 0) {
+            const blocksToInsert = existingTranscripts.map((t) => ({
+              call_id: existingCall.id,
+              speaker: t.speaker,
+              text: t.text,
+              timestamp_iso: t.timestamp_iso,
+            }));
+
+            await supabase.from('transcript_blocks').insert(blocksToInsert);
+          }
+          return;
+        }
+      }
 
       const { data, error } = await supabase
         .from('calls')
@@ -55,56 +87,91 @@ export function useElevenLabsAgent() {
       }
     } catch (err) {
       console.error('[createSkeletonCall] Error:', err);
+    } finally {
+      creatingCallRef.current = false;
     }
   }, []);
 
+  const appendTranscript = useCallback(
+    async (speaker: 'caller' | 'ai', text: string) => {
+      if (!text) return;
+      if (speaker === 'caller' && !currentCallIdRef.current) {
+        await createSkeletonCall(conversationIdRef.current || undefined);
+      }
+
+      const block: TranscriptBlock = {
+        id: Math.random().toString(36).substring(7),
+        call_id: currentCallIdRef.current || 'live-session',
+        speaker,
+        text,
+        timestamp_iso: new Date().toISOString(),
+        is_highlighted: false,
+        created_at: new Date().toISOString(),
+      };
+
+      setTranscripts((prev) => [...prev, block]);
+      addTranscriptBlock(block);
+
+      if (currentCallIdRef.current) {
+        try {
+          await supabase.from('transcript_blocks').insert({
+            call_id: currentCallIdRef.current,
+            speaker: block.speaker,
+            text: block.text,
+            timestamp_iso: block.timestamp_iso,
+          });
+        } catch (err) {
+          console.error('Failed to save transcript block:', err);
+        }
+      }
+    },
+    [addTranscriptBlock, createSkeletonCall]
+  );
+
   const conversation = useConversation({
+    onConnect: () => {
+      console.log('[ElevenLabs] connected');
+    },
+    onDisconnect: () => {
+      console.log('[ElevenLabs] disconnected');
+    },
+    onError: (error: unknown) => {
+      console.error('[ElevenLabs] error:', error);
+    },
     onMessage: async (message: any) => {
       let text = '';
       let speaker: 'caller' | 'ai' | null = null;
+      let isFinal = true;
 
-      if (message.source && message.message) {
+      if (message?.type === 'user_transcript') {
+        speaker = 'caller';
+        text =
+          message?.text ||
+          message?.user_transcription_event?.user_transcript ||
+          message?.transcript ||
+          '';
+        isFinal = message?.is_final ?? message?.final ?? true;
+      } else if (message?.type === 'agent_response') {
+        speaker = 'ai';
+        text =
+          message?.text ||
+          message?.agent_response_event?.agent_response ||
+          message?.response ||
+          '';
+        isFinal = message?.is_final ?? message?.final ?? true;
+      } else if (message?.source && message?.message) {
         speaker = message.source === 'user' ? 'caller' : 'ai';
         text = message.message;
-      } else if (message.type === 'user_transcription') {
-        speaker = 'caller';
-        text = message.user_transcription_event?.user_transcript || '';
-      } else if (message.type === 'agent_response') {
-        speaker = 'ai';
-        text = message.agent_response_event?.agent_response || '';
       }
 
-      if (text && speaker) {
-        if (speaker === 'caller' && !currentCallIdRef.current) {
-          await createSkeletonCall();
-        }
+      if (!speaker || !text || !isFinal) return;
 
-        const block: TranscriptBlock = {
-          id: Math.random().toString(36).substring(7),
-          call_id: currentCallIdRef.current || 'live-session',
-          speaker,
-          text,
-          timestamp_iso: new Date().toISOString(),
-          is_highlighted: false,
-          created_at: new Date().toISOString(),
-        };
-
-        setTranscripts((prev) => [...prev, block]);
-        addTranscriptBlock(block);
-
-        if (currentCallIdRef.current) {
-          try {
-            await supabase.from('transcript_blocks').insert({
-              call_id: currentCallIdRef.current,
-              speaker: block.speaker,
-              text: block.text,
-              timestamp_iso: block.timestamp_iso,
-            });
-          } catch (err) {
-            console.error('Failed to save transcript block:', err);
-          }
-        }
+      if (speaker === 'caller') {
+        console.log('[ElevenLabs] caller:', text);
+      } else {
+        console.log('[ElevenLabs] agent:', text);
       }
+      await appendTranscript(speaker, text);
     },
   });
 
@@ -115,9 +182,11 @@ export function useElevenLabsAgent() {
         throw new Error('VITE_ELEVENLABS_AGENT_ID is not defined');
       }
 
-      await conversation.startSession({
+      const conversationId = await (conversation as any).startSession({
         agentId,
       });
+      conversationIdRef.current = conversationId;
+      await createSkeletonCall(conversationId);
     } catch (err) {
       console.error('Failed to start conversation:', err);
       throw err;
@@ -127,6 +196,7 @@ export function useElevenLabsAgent() {
   const stopAgent = useCallback(async () => {
     await conversation.endSession();
     currentCallIdRef.current = null;
+    conversationIdRef.current = null;
     setCallId(null);
     setTranscripts([]);
   }, [conversation]);
