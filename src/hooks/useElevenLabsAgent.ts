@@ -10,6 +10,7 @@ export function useElevenLabsAgent() {
   const currentCallIdRef = useRef<string | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
   const transcriptsRef = useRef<TranscriptBlock[]>([]);
+  const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     transcriptsRef.current = transcripts;
@@ -17,30 +18,49 @@ export function useElevenLabsAgent() {
 
   const createSkeletonCall = useCallback(async () => {
     if (currentCallIdRef.current) return;
+    const elevenLabsCallId = conversationIdRef.current;
+    if (!elevenLabsCallId) {
+      console.warn('[createSkeletonCall] No conversation ID yet, using fallback');
+    }
 
     try {
-      console.log('[createSkeletonCall] Creating initial call record...');
-      const newCallId = `CALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      console.log('[createSkeletonCall] Creating/finding call record for:', elevenLabsCallId || 'fallback');
 
-      const { data, error } = await supabase
+      // Use ElevenLabs conversation ID so transcripts and webhooks (location, etc.) land on the same call
+      const callIdToUse = elevenLabsCallId || `CALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const { data: existing } = await supabase
         .from('calls')
-        .insert({
-          call_id: newCallId,
-          status: 'ai_handling',
-          priority: 'medium',
-          incident_type: 'Incoming Call...',
-          location_text: 'Identifying...',
-          source_type: 'web_voice',
-          started_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+        .select('id')
+        .eq('call_id', callIdToUse)
+        .maybeSingle();
 
-      if (error) throw error;
+      let data: { id: string };
+      if (existing) {
+        data = existing;
+        console.log('[createSkeletonCall] Found existing call from webhook:', data.id);
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('calls')
+          .insert({
+            call_id: callIdToUse,
+            status: 'ai_handling',
+            priority: 'medium',
+            incident_type: 'Incoming Call...',
+            location_text: 'Identifying...',
+            source_type: 'web_voice',
+            started_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        data = inserted;
+        console.log('[createSkeletonCall] Created initial record:', data.id);
+      }
 
       currentCallIdRef.current = data.id;
       setCallId(data.id);
-      console.log('[createSkeletonCall] Created initial record:', data.id);
 
       const existingTranscripts = transcriptsRef.current;
       if (existingTranscripts.length > 0) {
@@ -115,9 +135,13 @@ export function useElevenLabsAgent() {
         throw new Error('VITE_ELEVENLABS_AGENT_ID is not defined');
       }
 
-      await conversation.startSession({
+      const conversationId = await conversation.startSession({
         agentId,
       });
+      conversationIdRef.current = typeof conversationId === 'string' ? conversationId : String(conversationId ?? '');
+      if (conversationIdRef.current) {
+        console.log('[startAgent] ElevenLabs conversation ID (used as call_id for webhooks):', conversationIdRef.current);
+      }
     } catch (err) {
       console.error('Failed to start conversation:', err);
       throw err;
@@ -127,6 +151,7 @@ export function useElevenLabsAgent() {
   const stopAgent = useCallback(async () => {
     await conversation.endSession();
     currentCallIdRef.current = null;
+    conversationIdRef.current = null;
     setCallId(null);
     setTranscripts([]);
   }, [conversation]);

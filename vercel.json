@@ -1,0 +1,23 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/v1/dispatch/events",
+      "destination": "/api/v1/dispatch/events"
+    },
+    {
+      "source": "/v1/dispatch/call-start",
+      "destination": "/api/v1/dispatch/call-start"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}
