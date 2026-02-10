@@ -130,11 +130,18 @@ export function useElevenLabsAgent() {
 
   const startAgent = useCallback(async () => {
     try {
+      // Clear previous call state when starting a new one
+      setTranscripts([]);
+      setCallId(null);
+      currentCallIdRef.current = null;
+      conversationIdRef.current = null;
+
       const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
       if (!agentId) {
         throw new Error('VITE_ELEVENLABS_AGENT_ID is not defined');
       }
 
+      // EXTERNAL API CALL: ElevenLabs (Voice AI Session)
       const conversationId = await conversation.startSession({
         agentId,
         connectionType: 'websocket',
@@ -166,10 +173,11 @@ export function useElevenLabsAgent() {
       }
     }
 
+    // We no longer clear callId and transcripts here
+    // to allow the Sentinel (Gemini) to process the final transcript.
+    // They will be cleared when the next call starts.
     currentCallIdRef.current = null;
     conversationIdRef.current = null;
-    setCallId(null);
-    setTranscripts([]);
   }, [conversation]);
 
   return {

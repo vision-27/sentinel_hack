@@ -41,105 +41,100 @@ const tools = [
         caller_phone: { type: "STRING", description: "Phone number of the caller" },
         incident_type: { type: "STRING", description: "Type of emergency (Fire, Medical, etc.)" },
         location_text: { type: "STRING", description: "Address or location description" },
-        priority: { 
-          type: "STRING", 
-          enum: ["low", "medium", "high", "critical"], 
-          description: "Urgency level. MUST be one of: low, medium, high, critical." 
+        priority: {
+          type: "STRING",
+          enum: ["low", "medium", "high", "critical"],
+          description: "Urgency level. MUST be one of: low, medium, high, critical."
         },
         medical_emergency: { type: "BOOLEAN", description: "Is medical attention needed?" },
         number_of_victims: { type: "INTEGER", description: "Count of people injured/at risk" },
-        weapons_present: { 
-          type: "STRING", 
-          enum: ["yes", "no", "unknown"], 
-          description: "Are weapons involved?" 
+        weapons_present: {
+          type: "STRING",
+          enum: ["yes", "no", "unknown"],
+          description: "Are weapons involved?"
         },
-        impact_category: { 
-          type: "STRING", 
-          enum: ["None", "Low", "Medium", "High"], 
-          description: "Severity of impact" 
+        impact_category: {
+          type: "STRING",
+          enum: ["None", "Low", "Medium", "High"],
+          description: "Severity of impact"
         },
         notes: { type: "STRING", description: "Summary or extra details" }
       },
-      required: [] 
+      required: []
     }
   }
 ];
 
-export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: string | null) {
+export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: string | null, isActive: boolean = false) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastProcessedLength, setLastProcessedLength] = useState(0);
   const processingRef = useRef(false);
+
+  // Reset progress when call ID changes
+  useEffect(() => {
+    if (currentCallId) {
+      setLastProcessedLength(0);
+    }
+  }, [currentCallId]);
 
   // Analyze transcript when it changes and we have a valid call ID
   useEffect(() => {
     const analyze = async () => {
       // Logic Update:
-      // We process if we have a valid call ID, transcripts exist, 
-      // AND either the length has changed OR we explicitly want to re-check.
-      // We also ensure we aren't already processing.
-      if (!currentCallId || transcripts.length === 0 || transcripts.length === lastProcessedLength || processingRef.current) {
+      // We process ONLY if the call is NOT active (i.e. it has ended)
+      // AND we have transcripts we haven't processed yet.
+      if (isActive || !currentCallId || transcripts.length === 0 || transcripts.length === lastProcessedLength || processingRef.current) {
         return;
       }
-
-      // Trigger condition:
-      // Only trigger if the latest message is complete. 
-      // In a real streaming scenario, we might get partials, but TranscriptBlock usually represents a "committed" chunk 
-      // from 11Labs or a finished utterance.
-      // We want to run this ideally when the user finishes speaking.
-      
-      // If the last message is from the caller, we definitely want to analyze it.
-      // If it's from the AI, we might still want to analyze to capture context, 
-      // but the primary signal is usually the caller providing info.
-      // Let's proceed regardless of speaker to be safe, but we can prioritize 'caller'.
 
       processingRef.current = true;
       setIsProcessing(true);
 
       try {
         console.log(`[Sentinel] START Processing | CallID: ${currentCallId} | Transcripts: ${transcripts.length}`);
-        
+
         // Construct history for Gemini
-        const conversationHistory = transcripts.map(t => 
+        const conversationHistory = transcripts.map(t =>
           `${t.speaker === 'caller' ? 'Caller' : 'Dispatcher'}: ${t.text}`
         ).join('\n');
 
         const prompt = `${SYSTEM_INSTRUCTION}\n\nCurrent Transcript:\n${conversationHistory}`;
-        // console.log('[Sentinel] Prompt sending to Gemini:', prompt); // Optional: verbose
 
         // We use generateContent with tools
+        // EXTERNAL API CALL: Google Gemini (Generative AI for data extraction)
         const result = await geminiModel.generateContent({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ functionDeclarations: tools as any }], // Cast for TS if needed
-          toolConfig: { functionCallingConfig: { mode: "AUTO" as any } } 
+          toolConfig: { functionCallingConfig: { mode: "AUTO" as any } }
         });
 
         const response = result.response;
         console.log('[Sentinel] Raw Gemini Response:', JSON.stringify(response, null, 2));
-        
+
         // Check if candidates exist and have content
         if (response.candidates && response.candidates.length > 0) {
-             const candidate = response.candidates[0];
-             // In newer Gemini SDKs/models, function calls are inside parts
-             const parts = candidate.content?.parts || [];
-             
-             console.log('[Sentinel] Candidate Parts:', JSON.stringify(parts, null, 2));
+          const candidate = response.candidates[0];
+          // In newer Gemini SDKs/models, function calls are inside parts
+          const parts = candidate.content?.parts || [];
 
-             // Look for function calls in parts
-             for (const part of parts) {
-                 if (part.functionCall) {
-                     const call = part.functionCall;
-                     console.log(`[Sentinel] FUNCTION CALL FOUND: ${call.name}`, call.args);
+          console.log('[Sentinel] Candidate Parts:', JSON.stringify(parts, null, 2));
 
-                     if (call.name === 'update_emergency_incident') {
-                        console.log('[Sentinel] Triggering update_emergency_incident service...', call.args);
-                        await incidentService.createOrUpdateEmergencyCall(currentCallId, call.args as any);
-                     }
-                 } else {
-                    console.log('[Sentinel] No function call in this part. Text:', part.text);
-                 }
-             }
+          // Look for function calls in parts
+          for (const part of parts) {
+            if (part.functionCall) {
+              const call = part.functionCall;
+              console.log(`[Sentinel] FUNCTION CALL FOUND: ${call.name}`, call.args);
+
+              if (call.name === 'update_emergency_incident') {
+                console.log('[Sentinel] Triggering update_emergency_incident service...', call.args);
+                await incidentService.createOrUpdateEmergencyCall(currentCallId, call.args as any);
+              }
+            } else {
+              console.log('[Sentinel] No function call in this part. Text:', part.text);
+            }
+          }
         } else {
-             console.log('[Sentinel] No candidates returned from Gemini.');
+          console.log('[Sentinel] No candidates returned from Gemini.');
         }
 
       } catch (err) {
@@ -152,9 +147,9 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
     };
 
     // Reduced debounce to 1s to be more responsive to "end of sentence"
-    const timeoutId = setTimeout(analyze, 1000); 
+    const timeoutId = setTimeout(analyze, 1000);
     return () => clearTimeout(timeoutId);
-  }, [transcripts, currentCallId, lastProcessedLength]);
+  }, [transcripts, currentCallId, lastProcessedLength, isActive]);
 
   return {
     isProcessing

@@ -72,14 +72,17 @@ app.post('/v1/dispatch/events', async (req, res) => {
     location__json: body.location_json,
   });
 
-  const addressString = buildAddressString(body.location_json);
+  const addressString = body.location_text || buildAddressString(body.location_json, body.approximate_location);
   if (addressString) {
-    console.log('CHECK ADDRESS STRING: ', addressString);
-    locationPin = await geocodeAddress(addressString);
-    console.log(locationPin);
+    console.log('[dispatch webhook] Attempting to geocode address:', addressString);
+    locationPin = await searchLocation(addressString);
+    if (locationPin) {
+      console.log('[dispatch webhook] Successfully resolved location:', locationPin.formatted_address);
+    }
   } else {
-    console.warn('[dispatch webhook] No location_json provided, skipping geocode');
+    console.warn('[dispatch webhook] No location info provided, skipping geocode');
   }
+
   if (locationPin) {
     if (!supabase) {
       console.warn('[dispatch webhook] Supabase not configured for updates');
@@ -91,7 +94,7 @@ app.post('/v1/dispatch/events', async (req, res) => {
         .update({
           location_lat: locationPin.lat,
           location_lon: locationPin.lng,
-          location_text: locationPin.formatted_address,
+          location_text: locationPin.formatted_address || addressString,
         })
         .eq('call_id', body.incident_id);
 
@@ -99,9 +102,15 @@ app.post('/v1/dispatch/events', async (req, res) => {
         console.error('[dispatch webhook] Supabase update failed', error);
       } else {
         console.log('[dispatch webhook] Supabase updated call location', body.incident_id);
-        console.log('confirmed lat and long:', locationPin.lat, locationPin.lng);
+        console.log('Confirmed lat/long:', locationPin.lat, locationPin.lng);
       }
     }
+  } else if (body.location_text && body.incident_id && supabase) {
+    // Still update the text description even if geocoding failed
+    await supabase
+      .from('calls')
+      .update({ location_text: body.location_text })
+      .eq('call_id', body.incident_id);
   }
 
   const result = sendJson(res, 200, { ok: true, event_received: true });
@@ -155,15 +164,12 @@ app.get('/v1/dispatch/events', (_req, res) => {
   sendJson(res, 200, { ok: true, count: storedEvents.length, data: storedEvents });
 });
 
-function buildAddressString(locationJson) {
-  if (!locationJson) {
+function buildAddressString(locationJson, approximateLocation) {
+  if (!locationJson && !approximateLocation) {
     return '';
   }
 
-  const address = locationJson?.address || locationJson;
-  if (!address || typeof address !== 'object') {
-    return '';
-  }
+  const address = locationJson?.address || locationJson || {};
 
   const parts = [
     address.Building_House_Number,
@@ -172,54 +178,72 @@ function buildAddressString(locationJson) {
     address.landmark
   ].filter(Boolean);
 
-  const result = parts.join(' ').trim();
-  if (result.length === 0) {
-    return '';
+  // If we have an approximate location and it's not already represented in the address components,
+  // add it to help Google Geocoding API narrow down the search
+  if (approximateLocation && typeof approximateLocation === 'string') {
+    const approxLower = approximateLocation.toLowerCase();
+    const alreadyIncluded = parts.some(p => {
+      const pStr = String(p).toLowerCase();
+      return pStr.includes(approxLower) || approxLower.includes(pStr);
+    });
+
+    if (!alreadyIncluded) {
+      parts.push(approximateLocation);
+    }
   }
 
+  const result = parts.join(', ').trim();
   return result;
 }
 
-async function geocodeAddress(addressString) {
-  const geocodingApiKey =
+async function searchLocation(addressString) {
+  const apiKey =
     process.env.GOOGLE_GEOCODING_API_KEY ||
     process.env.VITE_GOOGLE_MAPS_API_KEY ||
     '';
 
-  if (!geocodingApiKey) {
-    console.warn('[dispatch webhook] Missing Google Geocoding API key');
+  if (!apiKey) {
+    console.warn('[dispatch webhook] Missing Google API key');
     return null;
   }
 
   try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressString)}&key=${geocodingApiKey}`
+    // 1. Try Geocoding API first (best for structured addresses)
+    console.log(`[search] Attempting Geocode for: "${addressString}"`);
+    const geoResponse = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressString)}&key=${apiKey}`
     );
-    if (!response.ok) {
-      console.warn('[dispatch webhook] Geocoding request failed', response.status);
-      return null;
+    const geoData = await geoResponse.json();
+
+    if (geoData.status === 'OK' && geoData.results?.length) {
+      const best = geoData.results[0];
+      return {
+        lat: best.geometry.location.lat,
+        lng: best.geometry.location.lng,
+        formatted_address: best.formatted_address,
+      };
     }
 
-    const data = await response.json();
-    if (data.status !== 'OK' || !data.results?.length) {
-      console.warn('[dispatch webhook] Geocoding returned no results', data.status);
-      return null;
+    // 2. Fallback to Places Text Search (better for landmarks/descriptions)
+    console.log(`[search] Geocode failed, attempting Places Text Search for: "${addressString}"`);
+    const placesResponse = await fetch(
+      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(addressString)}&key=${apiKey}`
+    );
+    const placesData = await placesResponse.json();
+
+    if (placesData.status === 'OK' && placesData.results?.length) {
+      const best = placesData.results[0];
+      return {
+        lat: best.geometry.location.lat,
+        lng: best.geometry.location.lng,
+        formatted_address: best.formatted_address || best.name,
+      };
     }
 
-    const best = data.results[0];
-    const location = best.geometry?.location;
-    if (!location) {
-      console.warn('[dispatch webhook] Geocoding missing location geometry');
-      return null;
-    }
-
-    return {
-      lat: location.lat,
-      lng: location.lng,
-      formatted_address: best.formatted_address,
-    };
+    console.warn('[dispatch webhook] No results found for address in Geocode or Places API');
+    return null;
   } catch (error) {
-    console.error('[dispatch webhook] Geocoding API error:', error);
+    console.error('[dispatch webhook] Map search API error:', error);
     return null;
   }
 }

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 
 export default function VoiceCallPage() {
   const { status, isSpeaking, startAgent, stopAgent, transcripts, callId } = useElevenLabsAgent();
-  const { isProcessing } = useSentinelAgent(transcripts, callId);
+  const { isProcessing } = useSentinelAgent(transcripts, callId, status === 'connected');
   const [scrollLocked, setScrollLocked] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 

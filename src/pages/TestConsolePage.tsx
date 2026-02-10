@@ -11,9 +11,10 @@ export default function TestConsolePage() {
   const [input, setInput] = useState('');
   const [callId, setCallId] = useState<string | null>(null);
   const [incidentData, setIncidentData] = useState<any>(null);
+  const [isSimulating, setIsSimulating] = useState(true);
 
   // Use the hook with our local state
-  const { isProcessing } = useSentinelAgent(transcripts, callId);
+  const { isProcessing } = useSentinelAgent(transcripts, callId, isSimulating);
 
   // Initialize a test call record
   const initTestCall = async () => {
@@ -102,6 +103,13 @@ export default function TestConsolePage() {
           <h1 className="text-2xl font-bold text-gray-900">Sentinel Agent Test Console</h1>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant={isSimulating ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setIsSimulating(!isSimulating)}
+          >
+            {isSimulating ? "End Simulation" : "Restart Simulation"}
+          </Button>
           {isProcessing ? (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
               <BrainCircuit size={16} className="animate-spin" />

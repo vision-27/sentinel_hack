@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { useEffect, useState, useRef } from 'react';
+import { APIProvider, Map, AdvancedMarker, Pin, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Call } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
+import { Badge } from './Badge';
 import { MapPin, AlertTriangle } from 'lucide-react';
 
 interface MapViewProps {
@@ -29,14 +30,14 @@ export default function MapView({ call, calls, height = '400px' }: MapViewProps)
     else if (calls && calls.length > 0) {
       const callWithLocation = calls.find(c => c.location_lat && c.location_lon);
       if (callWithLocation) {
-        setCenter({ 
-          lat: callWithLocation.location_lat!, 
-          lng: callWithLocation.location_lon! 
+        setCenter({
+          lat: callWithLocation.location_lat!,
+          lng: callWithLocation.location_lon!
         });
         setZoom(12);
       }
     }
-  }, [call, calls]);
+  }, [call?.location_lat, call?.location_lon, calls]);
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
@@ -57,7 +58,7 @@ export default function MapView({ call, calls, height = '400px' }: MapViewProps)
     );
   }
 
-  const markers = call 
+  const markers = call
     ? (call.location_lat && call.location_lon ? [call] : [])
     : (calls || []).filter(c => c.location_lat && c.location_lon);
 
@@ -94,12 +95,15 @@ export default function MapView({ call, calls, height = '400px' }: MapViewProps)
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle level="h3">Location Map</CardTitle>
+        {call?.location_text && !call.location_lat && (
+          <Badge variant="warning" size="sm">Resolving Location...</Badge>
+        )}
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 relative">
         <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-          <div style={{ height, width: '100%' }}>
+          <div style={{ height, width: '100%' }} className="relative">
             <Map
               mapId="emergency-call-map"
               center={center}
@@ -110,6 +114,8 @@ export default function MapView({ call, calls, height = '400px' }: MapViewProps)
               mapTypeControl={false}
               streetViewControl={false}
               fullscreenControl={true}
+              onCenterChanged={(ev) => setCenter(ev.detail.center)}
+              onZoomChanged={(ev) => setZoom(ev.detail.zoom)}
             >
               {markers.map((marker) => (
                 <AdvancedMarker
@@ -125,10 +131,64 @@ export default function MapView({ call, calls, height = '400px' }: MapViewProps)
                 </AdvancedMarker>
               ))}
             </Map>
+            <MapSearchControl onLocationSelect={(loc) => {
+              setCenter({ lat: loc.lat, lng: loc.lng });
+              setZoom(16);
+            }} />
           </div>
         </APIProvider>
       </CardContent>
     </Card>
+  );
+}
+
+function MapSearchControl({ onLocationSelect }: { onLocationSelect: (loc: { lat: number, lng: number }) => void }) {
+  const places = useMapsLibrary('places');
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!places || !inputRef.current) return;
+
+    const options = {
+      fields: ['geometry', 'name', 'formatted_address'],
+    };
+
+    const autocomplete = new places.Autocomplete(inputRef.current, options);
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place.geometry?.location) {
+        const loc = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        onLocationSelect(loc);
+        setInputValue(place.formatted_address || place.name || '');
+      }
+    });
+
+    return () => {
+      google.maps.event.clearInstanceListeners(autocomplete);
+    };
+  }, [places, onLocationSelect]);
+
+  return (
+    <div className="absolute top-4 left-4 z-10 w-72">
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MapPin size={16} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+          placeholder="Search location..."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+        />
+      </div>
+    </div>
   );
 }
 
