@@ -53,7 +53,7 @@ app.post('/v1/dispatch/events', async (req, res) => {
     }
   }
 
-  const eventTypes = ['location_update', 'location_confirmed', 'escalation_request', 'call_end'];
+  const eventTypes = ['location_update', 'location_confirmed', 'escalation_request'];
   if (body.event_type && !eventTypes.includes(body.event_type)) {
     console.warn('[dispatch webhook] invalid event_type', body.event_type);
   }
@@ -72,38 +72,11 @@ app.post('/v1/dispatch/events', async (req, res) => {
     location__json: body.location_json,
   });
 
-  if (body.event_type === 'call_end') {
-    if (!supabase) {
-      console.warn('[dispatch webhook] Supabase not configured for updates');
-    } else if (!body.incident_id) {
-      console.warn('[dispatch webhook] Missing incident_id, cannot close call');
-    } else {
-      const { error: closeError } = await supabase
-        .from('calls')
-        .update({ status: 'closed', closed_at: new Date().toISOString() })
-        .eq('call_id', body.incident_id);
-
-      if (closeError) {
-        console.error('[dispatch webhook] Supabase close failed', closeError);
-      } else {
-        console.log('[dispatch webhook] Call closed', body.incident_id);
-      }
-    }
-  }
-
   const addressString = buildAddressString(body.location_json);
   if (addressString) {
     console.log('CHECK ADDRESS STRING: ', addressString);
     locationPin = await geocodeAddress(addressString);
     console.log(locationPin);
-    if (!locationPin) {
-      console.warn('[dispatch webhook] Geocoding returned no results; using demo coordinates');
-      locationPin = {
-        lat: 51.5008,
-        lng: -0.0009,
-        formatted_address: addressString,
-      };
-    }
   } else {
     console.warn('[dispatch webhook] No location_json provided, skipping geocode');
   }
@@ -196,7 +169,7 @@ function buildAddressString(locationJson) {
     address.Building_House_Number,
     address.Street,
     address.State_Province_Town_City,
-    address.Landmark
+    address.landmark
   ].filter(Boolean);
 
   const result = parts.join(' ').trim();
