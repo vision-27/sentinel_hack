@@ -4,7 +4,7 @@ import { Call, TranscriptBlock, ExtractedField, CallWithContext } from '../types
 interface CallContextType {
   activeCall: CallWithContext | null;
   calls: Call[];
-  setActiveCall: (call: CallWithContext | null) => void;
+  setActiveCall: (call: CallWithContext | null | ((prev: CallWithContext | null) => CallWithContext | null)) => void;
   setCalls: (calls: Call[] | ((prevCalls: Call[]) => Call[])) => void;
   addTranscriptBlock: (block: TranscriptBlock) => void;
   updateExtractedField: (field: ExtractedField) => void;
@@ -22,56 +22,63 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const addTranscriptBlock = useCallback(
     (block: TranscriptBlock) => {
-      if (activeCall && block.call_id === activeCall.id) {
-        setActiveCall({
-          ...activeCall,
-          transcripts: [...(activeCall.transcripts || []), block],
-        });
-      }
+      setActiveCall((prev) => {
+        if (prev && block.call_id === prev.id) {
+          return {
+            ...prev,
+            transcripts: [...(prev.transcripts || []), block],
+          };
+        }
+        return prev;
+      });
     },
-    [activeCall]
+    []
   );
 
   const updateExtractedField = useCallback(
     (field: ExtractedField) => {
-      if (activeCall && field.call_id === activeCall.id) {
-        const existingIndex =
-          activeCall.extracted_fields?.findIndex((f) => f.field_name === field.field_name) ?? -1;
+      setActiveCall((prev) => {
+        if (prev && field.call_id === prev.id) {
+          const existingIndex =
+            prev.extracted_fields?.findIndex((f) => f.field_name === field.field_name) ?? -1;
 
-        if (existingIndex >= 0) {
-          const updated = [...(activeCall.extracted_fields || [])];
-          updated[existingIndex] = field;
-          setActiveCall({
-            ...activeCall,
-            extracted_fields: updated,
-          });
-        } else {
-          setActiveCall({
-            ...activeCall,
-            extracted_fields: [...(activeCall.extracted_fields || []), field],
-          });
+          if (existingIndex >= 0) {
+            const updated = [...(prev.extracted_fields || [])];
+            updated[existingIndex] = field;
+            return {
+              ...prev,
+              extracted_fields: updated,
+            };
+          } else {
+            return {
+              ...prev,
+              extracted_fields: [...(prev.extracted_fields || []), field],
+            };
+          }
         }
-      }
+        return prev;
+      });
     },
-    [activeCall]
+    []
   );
 
   const updateCall = useCallback(
     (updates: Partial<Call>) => {
-      if (activeCall) {
-        setActiveCall({
-          ...activeCall,
-          ...updates,
-        });
-      }
-
-      setCalls((prevCalls) =>
-        prevCalls.map((call) =>
-          call.id === activeCall?.id ? { ...call, ...updates } : call
-        )
-      );
+      setActiveCall((prev) => {
+        if (prev) {
+          const updated = { ...prev, ...updates };
+          // After updating activeCall, we also need to update the calls list
+          setCalls((prevCalls) =>
+            prevCalls.map((call) =>
+              call.id === prev.id ? { ...call, ...updates } : call
+            )
+          );
+          return updated;
+        }
+        return prev;
+      });
     },
-    [activeCall]
+    []
   );
 
   const value: CallContextType = {

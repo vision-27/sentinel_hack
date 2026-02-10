@@ -11,7 +11,7 @@ import CallList from '../components/CallList';
 import CallDetail from '../components/CallDetail';
 
 export default function DashboardLayout() {
-  const { activeCall, setActiveCall, calls, setCalls, isLoading, setIsLoading } = useCall();
+  const { activeCall, setActiveCall, calls, setCalls, isLoading, setIsLoading, addTranscriptBlock } = useCall();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userSelectedCall, setUserSelectedCall] = useState(false);
@@ -61,16 +61,17 @@ export default function DashboardLayout() {
         },
         (payload) => {
           const newAction = payload.new as CallAction;
-          // Use ref to get current activeCall value
-          const currentCall = activeCallRef.current;
-          if (!currentCall || currentCall.id !== callId) return;
-          // Check if action already exists to avoid duplicates
-          const actionExists = currentCall.actions?.some((a: CallAction) => a.id === newAction.id);
-          if (actionExists) return;
-          // Update the call with the new action
-          setActiveCall({
-            ...currentCall,
-            actions: [...(currentCall.actions || []), newAction],
+          // Use functional update to avoid stale closures
+          setActiveCall((prev: CallWithContext | null) => {
+            if (!prev || prev.id !== callId) return prev;
+            // Check if action already exists to avoid duplicates
+            const actionExists = prev.actions?.some((a: CallAction) => a.id === newAction.id);
+            if (actionExists) return prev;
+            // Update the call with the new action
+            return {
+              ...prev,
+              actions: [...(prev.actions || []), newAction],
+            };
           });
         }
       )
@@ -80,6 +81,26 @@ export default function DashboardLayout() {
       subscription.unsubscribe();
     };
   }, [activeCall?.id, setActiveCall]);
+
+  const fetchActiveCallTranscripts = async (callId: string) => {
+    try {
+      logExternalCall('Supabase', 'select', 'transcript_blocks (refresh)', { call_id: callId });
+      const { data: transcripts } = await supabase
+        .from('transcript_blocks')
+        .select('*')
+        .eq('call_id', callId)
+        .order('created_at', { ascending: true });
+
+      if (transcripts) {
+        setActiveCall((prev: CallWithContext | null) => {
+          if (!prev || prev.id !== callId) return prev;
+          return { ...prev, transcripts };
+        });
+      }
+    } catch (err) {
+      console.error('[Dashboard] Failed to refresh transcripts:', err);
+    }
+  };
 
   const loadCalls = async (showLoading = false) => {
     if (showLoading) {
@@ -118,8 +139,25 @@ export default function DashboardLayout() {
         }));
 
         setCalls(callsWithMarkSafe);
+
+        // SYNC: Update activeCall with any basic field changes from the poller
+        setActiveCall((prev: CallWithContext | null) => {
+          if (!prev) return prev;
+          const updated = callsWithMarkSafe.find(c => c.id === prev.id);
+          if (updated) {
+            // Only update if something actually changed to avoid unnecessary re-renders
+            if (updated.updated_at !== prev.updated_at || updated.status !== prev.status) {
+              // Trigger transcript refresh if call data changed
+              fetchActiveCallTranscripts(prev.id);
+              return { ...prev, ...updated };
+            }
+          }
+          return prev;
+        });
+
         if (!userSelectedCallRef.current && callsWithMarkSafe.length > 0) {
           const newestCall = callsWithMarkSafe[0];
+          // Use ref check to avoid loop
           if (activeCallRef.current?.id !== newestCall.id) {
             handleSelectCall(newestCall, false);
           }
@@ -159,9 +197,14 @@ export default function DashboardLayout() {
               })
             );
 
-            if (activeCallRef.current?.id === updatedCall.id) {
-              setActiveCall({ ...activeCallRef.current, ...updatedCall });
-            }
+            setActiveCall((prev) => {
+              if (prev?.id === updatedCall.id) {
+                // Trigger transcript refresh on real-time update
+                fetchActiveCallTranscripts(updatedCall.id);
+                return { ...prev, ...updatedCall };
+              }
+              return prev;
+            });
           } else if (payload.eventType === 'INSERT') {
             const newCall = payload.new as Call;
             // Check if this new call has a mark_safe action
@@ -220,6 +263,93 @@ export default function DashboardLayout() {
       subscription.unsubscribe();
     };
   };
+
+  // Subscribe to extracted_fields updates
+  useEffect(() => {
+    if (!activeCall) return;
+
+    const callId = activeCall.id;
+    const subscription = supabase
+      .channel(`extracted-fields-${callId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'extracted_fields',
+          filter: `call_id=eq.${callId}`,
+        },
+        async (payload) => {
+          console.log('[Dashboard] Extracted field change detected:', payload);
+          const changedField = payload.new as any;
+
+          // Update the active call state with the new extracted field
+          setActiveCall((prev: CallWithContext | null) => {
+            if (!prev || prev.id !== callId) return prev;
+
+            // Map field_name to call properties if applicable
+            const updatedCall = { ...prev };
+            const fieldName = changedField.field_name;
+            const fieldValue = changedField.field_value;
+
+            // Update main call properties if they match extracted fields
+            if (fieldName === 'caller_name') updatedCall.caller_name = fieldValue;
+            if (fieldName === 'caller_phone') updatedCall.caller_phone = fieldValue;
+            if (fieldName === 'incident_type') updatedCall.incident_type = fieldValue;
+            if (fieldName === 'location_text') updatedCall.location_text = fieldValue;
+            if (fieldName === 'priority') updatedCall.priority = fieldValue as any;
+            if (fieldName === 'impact_category') updatedCall.impact_category = fieldValue as any;
+            if (fieldName === 'notes' || fieldName === 'summary') updatedCall.notes = fieldValue;
+            if (fieldName === 'severity_score') updatedCall.severity_score = Number(fieldValue);
+            if (fieldName === 'ai_confidence_avg') updatedCall.ai_confidence_avg = Number(fieldValue);
+
+            // Also update the extracted_fields array
+            const existingFieldIndex = updatedCall.extracted_fields?.findIndex(f => f.field_name === fieldName);
+            if (existingFieldIndex !== undefined && existingFieldIndex !== -1) {
+              const newExtractedFields = [...(updatedCall.extracted_fields || [])];
+              newExtractedFields[existingFieldIndex] = changedField;
+              updatedCall.extracted_fields = newExtractedFields;
+            } else {
+              updatedCall.extracted_fields = [...(updatedCall.extracted_fields || []), changedField];
+            }
+
+            return updatedCall;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [activeCall?.id, setActiveCall]);
+
+  // Subscribe to transcript_blocks updates
+  useEffect(() => {
+    if (!activeCall) return;
+
+    const callId = activeCall.id;
+    const subscription = supabase
+      .channel(`transcript-blocks-${callId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transcript_blocks',
+          filter: `call_id=eq.${callId}`,
+        },
+        (payload) => {
+          console.log('[Dashboard] New transcript block detected:', payload);
+          addTranscriptBlock(payload.new as any);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [activeCall?.id, addTranscriptBlock]);
 
   const handleSelectCall = async (call: Call, showLoading = true, isUserAction = false) => {
     if (isUserAction) {

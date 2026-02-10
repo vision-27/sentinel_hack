@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { CallWithContext, TranscriptBlock } from '../types';
+import { CallWithContext } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { Input } from './Input';
 import { Button } from './Button';
 import { Badge } from './Badge';
-import { supabase } from '../lib/supabase';
 import { Search, Lock } from 'lucide-react';
 import { highlightCriticalKeywords } from '../lib/utils';
 
@@ -13,36 +12,10 @@ interface LiveTranscriptProps {
 }
 
 export default function LiveTranscript({ call }: LiveTranscriptProps) {
-  const [transcripts, setTranscripts] = useState<TranscriptBlock[]>(call.transcripts || []);
+  const transcripts = useMemo(() => call.transcripts || [], [call.transcripts]);
   const [searchQuery, setSearchQuery] = useState('');
   const [scrollLocked, setScrollLocked] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setTranscripts(call.transcripts || []);
-  }, [call.transcripts]);
-
-  useEffect(() => {
-    const subscription = supabase
-      .channel(`transcript-${call.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'transcript_blocks',
-          filter: `call_id=eq.${call.id}`,
-        },
-        (payload) => {
-          setTranscripts((prev) => [...prev, payload.new as TranscriptBlock]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [call.id]);
 
   useEffect(() => {
     if (scrollLocked && scrollContainerRef.current) {

@@ -70,21 +70,31 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
     }
   }, [currentCallId]);
 
+  const lastPingTimeRef = useRef<number>(0);
+  const PING_THROTTLE_MS = 3000; // 3 seconds
+
   // Analyze transcript when it changes and we have a valid call ID
   useEffect(() => {
     const analyze = async () => {
       // Logic Update:
-      // We process ONLY if the call is NOT active (i.e. it has ended)
-      // AND we have transcripts we haven't processed yet.
-      if (isActive || !currentCallId || transcripts.length === 0 || transcripts.length === lastProcessedLength || processingRef.current) {
+      // We process if we have a valid call ID AND transcripts we haven't processed yet.
+      // If the call IS active, we throttle to avoid over-pinging Gemini.
+      if (!currentCallId || transcripts.length === 0 || transcripts.length === lastProcessedLength || processingRef.current) {
+        return;
+      }
+
+      // Throttle pings during active calls
+      const now = Date.now();
+      if (isActive && (now - lastPingTimeRef.current < PING_THROTTLE_MS)) {
         return;
       }
 
       processingRef.current = true;
       setIsProcessing(true);
+      lastPingTimeRef.current = now;
 
       try {
-        console.log(`[Sentinel] START Processing | CallID: ${currentCallId} | Transcripts: ${transcripts.length}`);
+        console.log(`[Sentinel] START Processing | CallID: ${currentCallId} | Transcripts: ${transcripts.length} | Active: ${isActive}`);
 
         // Construct history for Gemini
         const conversationHistory = transcripts.map(t =>
@@ -95,7 +105,12 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
 
         // We use generateContent with tools
         // EXTERNAL API CALL: Google Gemini (Generative AI for data extraction)
-        logExternalCall('Google Gemini', 'generateContent', 'gemini-2.5-flash-lite', { prompt: prompt.substring(0, 500) + '...' });
+        logExternalCall('Google Gemini', 'generateContent', 'gemini-2.0-flash-lite', {
+          promptTruncated: prompt.length > 500 ? prompt.substring(0, 500) + '...' : prompt,
+          fullPromptLength: prompt.length,
+          transcriptLength: transcripts.length
+        });
+
         const result = await geminiModel.generateContent({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ functionDeclarations: tools as any }], // Cast for TS if needed
@@ -103,7 +118,7 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
         });
 
         const response = result.response;
-        console.log('[Sentinel] Raw Gemini Response:', JSON.stringify(response, null, 2));
+        console.log('[Sentinel] Full Gemini Response received:', response);
 
         // Check if candidates exist and have content
         if (response.candidates && response.candidates.length > 0) {
@@ -113,26 +128,35 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
 
           console.log('[Sentinel] Candidate Parts:', JSON.stringify(parts, null, 2));
 
+          let functionCalled = false;
           // Look for function calls in parts
           for (const part of parts) {
             if (part.functionCall) {
+              functionCalled = true;
               const call = part.functionCall;
-              console.log(`[Sentinel] FUNCTION CALL FOUND: ${call.name}`, call.args);
+              console.log(`%c[Sentinel] FUNCTION CALL FOUND: ${call.name}`, 'color: #10b981; font-weight: bold;', call.args);
 
               if (call.name === 'update_emergency_incident') {
                 console.log('[Sentinel] Triggering update_emergency_incident service...', call.args);
                 await incidentService.createOrUpdateEmergencyCall(currentCallId, call.args as any);
               }
-            } else {
-              console.log('[Sentinel] No function call in this part. Text:', part.text);
             }
           }
+
+          if (!functionCalled) {
+            const textResponse = parts.map(p => p.text).filter(Boolean).join('\n');
+            console.log('%c[Sentinel] Gemini responded with text BUT NO function call:', 'color: #f59e0b; font-weight: bold;', textResponse);
+          }
         } else {
-          console.log('[Sentinel] No candidates returned from Gemini.');
+          console.warn('%c[Sentinel] No candidates returned from Gemini. Finish reason:', 'color: #ef4444; font-weight: bold;', response.promptFeedback);
         }
 
       } catch (err) {
-        console.error('[Sentinel] Error processing transcript:', err);
+        console.error('%c[Sentinel] CRITICAL Error calling Gemini API:', 'color: #ef4444; font-weight: bold;', err);
+        if (err instanceof Error) {
+          console.error('[Sentinel] Error message:', err.message);
+          console.error('[Sentinel] Error stack:', err.stack);
+        }
       } finally {
         setLastProcessedLength(transcripts.length);
         processingRef.current = false;
