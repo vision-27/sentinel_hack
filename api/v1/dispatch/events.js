@@ -96,65 +96,84 @@ async function searchLocation(addressString) {
 }
 
 export default async function handler(req, res) {
+  // 1. CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Idempotency-Key, Idempotency-Key, Authorization, Accept');
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
-  }
-
-  const body = req.body || {};
-
-  if (typeof body.location_json === 'string') {
-    try {
-      body.location_json = JSON.parse(body.location_json);
-    } catch {
-      return res.status(422).json({ ok: false, error: 'location_json must be JSON' });
+  try {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     }
-  }
 
-  const addressString = body.location_text || buildAddressString(body.location_json, body.approximate_location);
-  let locationPin = null;
+    const body = req.body || {};
+    console.log('[dispatch webhook] Incoming payload:', JSON.stringify(body));
 
-  if (addressString) {
-    locationPin = await searchLocation(addressString);
-  } else {
-    console.warn('[dispatch webhook] No location info provided, skipping geocode');
-  }
+    if (typeof body.location_json === 'string') {
+      try {
+        body.location_json = JSON.parse(body.location_json);
+      } catch (e) {
+        return res.status(422).json({ ok: false, error: 'location_json must be JSON' });
+      }
+    }
 
-  if (locationPin) {
-    if (!supabase) {
-      console.warn('[dispatch webhook] Supabase not configured for updates');
-    } else if (!body.incident_id) {
-      console.warn('[dispatch webhook] Missing incident_id, cannot update Supabase');
+    const addressString = body.location_text || buildAddressString(body.location_json, body.approximate_location);
+    let locationPin = null;
+
+    if (addressString) {
+      locationPin = await searchLocation(addressString);
     } else {
+      console.warn('[dispatch webhook] No location info provided, skipping geocode');
+    }
+
+    if (locationPin) {
+      if (!supabase) {
+        console.warn('[dispatch webhook] Supabase not configured for updates');
+      } else if (!body.incident_id) {
+        console.warn('[dispatch webhook] Missing incident_id, cannot update Supabase');
+      } else {
+        const { error } = await supabase
+          .from('calls')
+          .update({
+            location_lat: locationPin.lat,
+            location_lon: locationPin.lng,
+            location_text: locationPin.formatted_address || addressString,
+          })
+          .eq('call_id', body.incident_id);
+
+        if (error) {
+          console.error('[dispatch webhook] Supabase update failed', error);
+          // Don't fail the whole request, but log it
+        } else {
+          console.log('[dispatch webhook] Supabase updated call location', body.incident_id);
+        }
+      }
+    } else if (body.location_text && body.incident_id && supabase) {
+      // Still update the text description even if geocoding failed
       const { error } = await supabase
         .from('calls')
-        .update({
-          location_lat: locationPin.lat,
-          location_lon: locationPin.lng,
-          location_text: locationPin.formatted_address || addressString,
-        })
+        .update({ location_text: body.location_text })
         .eq('call_id', body.incident_id);
 
       if (error) {
-        console.error('[dispatch webhook] Supabase update failed', error);
-      } else {
-        console.log('[dispatch webhook] Supabase updated call location', body.incident_id);
+        console.error('[dispatch webhook] Supabase text update failed', error);
       }
     }
-  } else if (body.location_text && body.incident_id && supabase) {
-    // Still update the text description even if geocoding failed
-    await supabase
-      .from('calls')
-      .update({ location_text: body.location_text })
-      .eq('call_id', body.incident_id);
-  }
 
-  return res.status(200).json({ ok: true, event_received: true });
+    return res.status(200).json({ ok: true, event_received: true });
+  } catch (error) {
+    console.error('[dispatch webhook] CRITICAL ERROR:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Internal Server Error',
+      message: error.message,
+      // Stack is helpful for debugging on Vercel
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
 }
