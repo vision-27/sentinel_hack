@@ -134,24 +134,23 @@ export default function CallDetail({ call }: CallDetailProps) {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Card padding="md">
-              <div className="text-center">
-                <Activity className="text-blue-600 mx-auto mb-2" size={24} />
-                <p className="text-xs text-gray-600 mb-1">Status</p>
-                <p className="text-sm font-bold text-gray-900 capitalize">{call.status.replace('_', ' ')}</p>
+            <Card padding="sm">
+              <div className="flex items-center gap-2">
+                <Activity className="text-blue-600 flex-shrink-0" size={16} />
+                <span className="text-xs text-gray-500">Status</span>
+                <span className="text-sm font-bold text-gray-900 capitalize ml-auto">{call.status.replace('_', ' ')}</span>
               </div>
             </Card>
 
-            <Card padding="md">
-              <div className="text-center">
-                <Zap className="text-yellow-600 mx-auto mb-2" size={24} />
-                <p className="text-xs text-gray-600 mb-1">AI Confidence</p>
-                <p className={`text-sm font-bold ${confidenceColor(call.ai_confidence_avg)}`}>
+            <Card padding="sm">
+              <div className="flex items-center gap-2">
+                <Zap className="text-yellow-600 flex-shrink-0" size={16} />
+                <span className="text-xs text-gray-500">AI Confidence</span>
+                <span className={`text-sm font-bold ml-auto ${confidenceColor(call.ai_confidence_avg)}`}>
                   {formatConfidence(call.ai_confidence_avg)}
-                </p>
+                </span>
               </div>
             </Card>
-
           </div>
         </div>
 

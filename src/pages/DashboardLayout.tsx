@@ -397,13 +397,6 @@ export default function DashboardLayout() {
     }
   };
 
-  // Find calls that need attention: Medium/High impact with AI active
-  const highImpactAICalls = calls.filter(
-    (call) =>
-      call.status === 'ai_handling' &&
-      (call.impact_category === 'Medium' || call.impact_category === 'High')
-  );
-
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
@@ -452,33 +445,6 @@ export default function DashboardLayout() {
           </div>
         </div>
       </header>
-
-      {highImpactAICalls.length > 0 && (
-        <div className="bg-orange-50 border-b border-orange-200 px-6 py-3">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="text-orange-600 mt-0.5 flex-shrink-0" size={20} />
-            <div className="flex-1">
-              <h3 className="font-semibold text-orange-900 mb-1">
-                Attention Required: {highImpactAICalls.length} call{highImpactAICalls.length !== 1 ? 's' : ''} with {highImpactAICalls.some(c => c.impact_category === 'High') ? 'High' : 'Medium'} impact being handled by AI
-              </h3>
-              <p className="text-sm text-orange-800">
-                You may need to take over these calls. Review the call list and consider transitioning to human handling.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {highImpactAICalls.map((call) => (
-                  <button
-                    key={call.id}
-                    onClick={() => handleSelectCall(call, true, true)}
-                    className="text-xs px-2 py-1 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded border border-orange-300 transition-colors"
-                  >
-                    {call.call_id} - {call.impact_category}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-1 overflow-hidden">
         <aside
