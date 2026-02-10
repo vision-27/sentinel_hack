@@ -7,6 +7,7 @@ export interface EmergencyCallParams {
   incident_type?: string;
   location_text?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
+  severity_score?: number;
   medical_emergency?: boolean;
   number_of_victims?: number;
   weapons_present?: 'yes' | 'no' | 'unknown';
@@ -88,10 +89,25 @@ export const incidentService = {
         const normalizedPriority = params.priority.toLowerCase();
         if (['low', 'medium', 'high', 'critical'].includes(normalizedPriority)) {
           updateData.priority = normalizedPriority;
+
+          // SYNC: Update severity_score based on priority
+          const priorityMap: Record<string, number> = {
+            low: 25,
+            medium: 50,
+            high: 75,
+            critical: 100
+          };
+          updateData.severity_score = priorityMap[normalizedPriority];
         } else {
           console.warn(`[incidentService] Invalid priority value: ${params.priority}, defaulting to medium`);
           updateData.priority = 'medium';
+          updateData.severity_score = 50;
         }
+      }
+
+      // If severity_score is explicitly provided, use it
+      if (params.severity_score !== undefined) {
+        updateData.severity_score = params.severity_score;
       }
       if (params.medical_emergency !== undefined) updateData.medical_emergency = params.medical_emergency;
       if (params.number_of_victims !== undefined) updateData.number_of_victims = params.number_of_victims;

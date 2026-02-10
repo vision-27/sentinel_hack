@@ -301,7 +301,8 @@ export default function DashboardLayout() {
             {activeCall && (
               <div className="hidden md:flex items-center gap-6 border-l border-gray-200 pl-6">
                 <div className="text-right">
-                  <div className="text-sm text-gray-600">Call ID: {activeCall.call_id}</div>
+                  <div className="text-sm font-semibold text-gray-900">{activeCall.caller_name || 'Anonymous Caller'}</div>
+                  <div className="text-xs text-gray-500">Call ID: {activeCall.call_id}</div>
                 </div>
 
                 <Badge variant={getStatusBadge(activeCall.status).color.includes('blue') ? 'info' : 'default'}>

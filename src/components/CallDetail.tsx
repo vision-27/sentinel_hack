@@ -57,38 +57,41 @@ export default function CallDetail({ call }: CallDetailProps) {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Caller</p>
+                  <p className="text-lg font-bold text-gray-900">{call.caller_name || 'Anonymous'}</p>
+                  {call.caller_phone && <p className="text-xs text-gray-500">{call.caller_phone}</p>}
+                </div>
+
+                <div>
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Incident Type</p>
                   <p className="text-lg font-bold text-gray-900">{call.incident_type || 'Unknown'}</p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Severity</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${getSeverityColor(call.severity_score)}`}
-                        style={{ width: `${call.severity_score}%` }}
-                      />
-                    </div>
-                    <span className="text-lg font-bold">{call.severity_score}</span>
-                  </div>
-                </div>
-
-                <div className="col-span-2">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Location</p>
                   <div className="flex items-start gap-2">
                     <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-medium text-gray-900">{call.location_text || 'Not provided'}</p>
+                      <p className="font-medium text-gray-900 line-clamp-2">{call.location_text || 'Not provided'}</p>
                       {call.location_lat && call.location_lon && (
                         <p className="text-xs text-gray-500">
                           {call.location_lat.toFixed(4)}, {call.location_lon.toFixed(4)}
                         </p>
                       )}
-                      {call.location_accuracy && (
-                        <p className="text-xs text-gray-500 capitalize">{call.location_accuracy}</p>
-                      )}
                     </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Severity / Priority</p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${getSeverityColor(call.severity_score)}`}
+                        style={{ width: `${call.severity_score || 50}%` }}
+                      />
+                    </div>
+                    <span className="text-lg font-bold capitalize">{call.priority || 'Medium'}</span>
                   </div>
                 </div>
 
