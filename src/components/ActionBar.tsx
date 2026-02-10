@@ -6,6 +6,7 @@ import { TextArea } from './Input';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCall } from '../contexts/CallContext';
+import { logExternalCall } from '../lib/logger';
 
 type DispatchType = 'fire' | 'police' | 'ems';
 
@@ -68,10 +69,10 @@ export default function ActionBar({ call }: ActionBarProps) {
         ...call,
         actions: [...(call.actions || []), dispatchAction],
       };
-      
+
       setActiveCall(updatedCall);
       console.log('Call state updated with dispatch action (UI only)');
-      
+
       setShowDispatchModal(false);
       setSelectedDispatchTypes([]);
     } catch (error) {
@@ -91,28 +92,32 @@ export default function ActionBar({ call }: ActionBarProps) {
     setIsSubmitting(true);
     try {
       // Persist mark_safe action to database
+      const actionDataInsert = {
+        call_id: call.id,
+        responder_id: responder.id,
+        action_type: 'mark_safe',
+        action_data: {
+          timestamp: new Date().toISOString(),
+        },
+      };
+      logExternalCall('Supabase', 'insert', 'call_actions', actionDataInsert);
       const { data: actionData, error: actionError } = await supabase
         .from('call_actions')
-        .insert({
-          call_id: call.id,
-          responder_id: responder.id,
-          action_type: 'mark_safe',
-          action_data: {
-            timestamp: new Date().toISOString(),
-          },
-        })
+        .insert(actionDataInsert)
         .select()
         .single();
 
       if (actionError) throw actionError;
 
       // Update call status to closed
+      const updateData = {
+        status: 'closed',
+        closed_at: new Date().toISOString(),
+      };
+      logExternalCall('Supabase', 'update', 'calls (close)', { id: call.id, ...updateData });
       const { error: updateError } = await supabase
         .from('calls')
-        .update({
-          status: 'closed',
-          closed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', call.id);
 
       if (updateError) throw updateError;
@@ -139,14 +144,14 @@ export default function ActionBar({ call }: ActionBarProps) {
 
       setActiveCall(updatedCall);
       updateCall({ status: 'closed', closed_at: new Date().toISOString() });
-      
+
       // Also update the calls list to show the green tag immediately
       setCalls((prevCalls: any[]) =>
         prevCalls.map((c: any) =>
           c.id === call.id ? { ...c, hasMarkSafeAction: true, status: 'closed', closed_at: new Date().toISOString() } : c
         )
       );
-      
+
       setShowMarkSafeModal(false);
     } catch (error) {
       console.error('Mark safe error:', error);
@@ -167,12 +172,14 @@ export default function ActionBar({ call }: ActionBarProps) {
 
     setIsSubmitting(true);
     try {
-      await supabase.from('call_actions').insert({
+      const noteData = {
         call_id: call.id,
         responder_id: responder.id,
         action_type: 'note',
         action_data: { note },
-      });
+      };
+      logExternalCall('Supabase', 'insert', 'call_actions', noteData);
+      await supabase.from('call_actions').insert(noteData);
 
       setNote('');
       setShowNoteModal(false);
@@ -258,18 +265,16 @@ export default function ActionBar({ call }: ActionBarProps) {
                 <button
                   key={type.value}
                   onClick={() => toggleDispatchType(type.value)}
-                  className={`p-4 border-2 rounded-lg transition-all text-left ${
-                    isSelected
+                  className={`p-4 border-2 rounded-lg transition-all text-left ${isSelected
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`flex-shrink-0 w-5 h-5 border-2 rounded ${
-                      isSelected
+                    <div className={`flex-shrink-0 w-5 h-5 border-2 rounded ${isSelected
                         ? 'border-blue-600 bg-blue-600'
                         : 'border-gray-300'
-                    } flex items-center justify-center`}>
+                      } flex items-center justify-center`}>
                       {isSelected && (
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -286,7 +291,7 @@ export default function ActionBar({ call }: ActionBarProps) {
           {selectedDispatchTypes.length > 0 && (
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
               <p className="text-blue-800 font-medium">
-                Selected: {selectedDispatchTypes.map(type => 
+                Selected: {selectedDispatchTypes.map(type =>
                   DISPATCH_TYPES.find(t => t.value === type)?.label
                 ).join(', ')}
               </p>
@@ -381,15 +386,14 @@ export default function ActionBar({ call }: ActionBarProps) {
                     }
                   }}
                   disabled={!canSelect && !isCurrent}
-                  className={`w-full p-3 border-2 rounded-lg transition-all text-left ${
-                    isCurrent
+                  className={`w-full p-3 border-2 rounded-lg transition-all text-left ${isCurrent
                       ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
                       : isSelected
-                      ? 'border-red-600 bg-red-50'
-                      : canSelect
-                      ? 'border-gray-200 hover:border-gray-300'
-                      : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
-                  }`}
+                        ? 'border-red-600 bg-red-50'
+                        : canSelect
+                          ? 'border-gray-200 hover:border-gray-300'
+                          : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-gray-900 capitalize">{priority}</span>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Phone, AlertCircle, Menu, X } from 'lucide-react';
 import { useCall } from '../contexts/CallContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { logExternalCall } from '../lib/logger';
 import { Call, CallWithContext, CallAction } from '../types';
 import { Button, Badge } from '../components';
 import { VoiceAgentButton } from '../components/VoiceAgentButton';
@@ -85,6 +86,7 @@ export default function DashboardLayout() {
       setIsLoading(true);
     }
     try {
+      logExternalCall('Supabase', 'select', 'calls', { status: ['ai_handling', 'human_active', 'closed'] });
       const { data, error } = await supabase
         .from('calls')
         .select('*')
@@ -96,6 +98,7 @@ export default function DashboardLayout() {
       // Fetch mark_safe actions for all calls
       const callIds = (data || []).map(call => call.id);
       if (callIds.length > 0) {
+        logExternalCall('Supabase', 'select', 'call_actions (mark_safe)', { callIds });
         const { data: actionsData } = await supabase
           .from('call_actions')
           .select('call_id, action_type')
@@ -162,6 +165,7 @@ export default function DashboardLayout() {
           } else if (payload.eventType === 'INSERT') {
             const newCall = payload.new as Call;
             // Check if this new call has a mark_safe action
+            logExternalCall('Supabase', 'select', 'call_actions (new call check)', { call_id: newCall.id });
             const { data: actionsData } = await supabase
               .from('call_actions')
               .select('call_id')
@@ -226,17 +230,20 @@ export default function DashboardLayout() {
       setIsLoading(true);
     }
     try {
+      logExternalCall('Supabase', 'select', 'transcript_blocks', { call_id: call.id });
       const { data: transcripts } = await supabase
         .from('transcript_blocks')
         .select('*')
         .eq('call_id', call.id)
         .order('created_at', { ascending: true });
 
+      logExternalCall('Supabase', 'select', 'extracted_fields', { call_id: call.id });
       const { data: fields } = await supabase
         .from('extracted_fields')
         .select('*')
         .eq('call_id', call.id);
 
+      logExternalCall('Supabase', 'select', 'call_actions', { call_id: call.id });
       const { data: actions } = await supabase
         .from('call_actions')
         .select('*')

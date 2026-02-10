@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logExternalCall } from '../lib/logger.js';
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||
@@ -54,6 +55,7 @@ export default async function handler(req, res) {
       started_at: new Date().toISOString(),
     };
 
+    logExternalCall('Supabase', 'upsert', 'calls', insertData);
     const { data, error } = await supabase
       .from('calls')
       .upsert(insertData, { onConflict: 'call_id' })

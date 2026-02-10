@@ -44,6 +44,26 @@ function sendJson(res, status, payload) {
   res.status(status).json(payload);
 }
 
+/**
+ * Logs an external API call with standardized formatting.
+ */
+function logExternalCall(service, method, endpoint, payload) {
+  const timestamp = new Date().toISOString();
+  console.log(`[EXTERNAL API CALL] [${timestamp}]`);
+  console.log(`Service: ${service}`);
+  console.log(`Method:  ${method}`);
+  console.log(`Target:  ${endpoint}`);
+  if (payload) {
+    try {
+      const sanitizedPayload = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      console.log(`Payload: ${sanitizedPayload}`);
+    } catch (e) {
+      console.log(`Payload: [Unserializable ${typeof payload}]`);
+    }
+  }
+  console.log('-----------------------------------');
+}
+
 
 app.get('/health', (_req, res) => {
   sendJson(res, 200, { ok: true });
@@ -101,6 +121,12 @@ app.post('/v1/dispatch/events', async (req, res) => {
     } else if (!body.incident_id) {
       console.warn('[dispatch webhook] Missing incident_id, cannot update Supabase');
     } else {
+      logExternalCall('Supabase', 'update', 'calls', {
+        call_id: body.incident_id,
+        location_lat: locationPin.lat,
+        location_lon: locationPin.lng,
+        location_text: locationPin.formatted_address || addressString
+      });
       const { error } = await supabase
         .from('calls')
         .update({
@@ -119,6 +145,7 @@ app.post('/v1/dispatch/events', async (req, res) => {
     }
   } else if (body.location_text && body.incident_id && supabase) {
     // Still update the text description even if geocoding failed
+    logExternalCall('Supabase', 'update', 'calls', { call_id: body.incident_id, location_text: body.location_text });
     await supabase
       .from('calls')
       .update({ location_text: body.location_text })
@@ -155,6 +182,7 @@ app.post('/v1/dispatch/call-start', async (req, res) => {
     started_at: new Date().toISOString(),
   };
 
+  logExternalCall('Supabase', 'upsert', 'calls', insertData);
   const { data, error } = await supabase
     .from('calls')
     .upsert(insertData, { onConflict: 'call_id' })
@@ -221,7 +249,7 @@ async function searchLocation(addressString) {
 
   try {
     // 1. Try Geocoding API first (best for structured addresses)
-    console.log(`[search] Attempting Geocode for: "${addressString}"`);
+    logExternalCall('Google Maps', 'GET', 'Geocoding API', { address: addressString });
     const geoResponse = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressString)}&key=${apiKey}`
     );
@@ -237,7 +265,7 @@ async function searchLocation(addressString) {
     }
 
     // 2. Fallback to Places Text Search (better for landmarks/descriptions)
-    console.log(`[search] Geocode failed, attempting Places Text Search for: "${addressString}"`);
+    logExternalCall('Google Maps', 'GET', 'Places API', { query: addressString });
     const placesResponse = await fetch(
       `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(addressString)}&key=${apiKey}`
     );

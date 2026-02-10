@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logExternalCall } from '../lib/logger';
 
 export interface EmergencyCallParams {
   caller_name?: string;
@@ -24,6 +25,7 @@ export const incidentService = {
     try {
       // 1. Try Geocoding API first
       const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(text)}&key=${apiKey}`;
+      logExternalCall('Google Maps', 'GET', 'Geocoding API', { address: text });
       const geoRes = await fetch(geoUrl);
       const geoData = await geoRes.json();
 
@@ -38,6 +40,7 @@ export const incidentService = {
 
       // 2. Fallback to Places API Text Search
       const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(text)}&key=${apiKey}`;
+      logExternalCall('Google Maps', 'GET', 'Places API', { query: text });
       const placesRes = await fetch(placesUrl);
       const placesData = await placesRes.json();
 
@@ -123,6 +126,7 @@ export const incidentService = {
           return { success: true, message: 'No fields to update' };
         }
 
+        logExternalCall('Supabase', 'update', 'calls', { id: callId, ...updateData });
         const { data, error } = await supabase
           .from('calls')
           .update(updateData)
@@ -153,6 +157,7 @@ export const incidentService = {
           ...updateData // Override defaults with provided data
         };
 
+        logExternalCall('Supabase', 'insert', 'calls', insertData);
         const { data, error } = await supabase
           .from('calls')
           .insert(insertData)
@@ -186,7 +191,7 @@ export const incidentService = {
     try {
       console.log(`[incidentService] Updating field ${fieldName} for call ${callId}`);
 
-      // Update extracted_fields table
+      logExternalCall('Supabase', 'upsert', 'extracted_fields', { call_id: callId, field_name: fieldName, field_value: value });
       const { error: fieldError } = await supabase
         .from('extracted_fields')
         .upsert({
@@ -203,6 +208,7 @@ export const incidentService = {
 
       // Optionally update main call record for specific fields
       if (['location', 'location_text'].includes(fieldName)) {
+        logExternalCall('Supabase', 'update', 'calls (text)', { id: callId, location_text: value });
         await supabase
           .from('calls')
           .update({ location_text: value })

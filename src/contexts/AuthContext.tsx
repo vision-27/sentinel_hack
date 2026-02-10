@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Responder } from '../types';
 import { supabase } from '../lib/supabase';
+import { logExternalCall } from '../lib/logger';
 
 interface AuthContextType {
   responder: Responder | null;
@@ -18,11 +19,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        logExternalCall('Supabase', 'auth.getSession', 'auth');
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (session?.user) {
+          logExternalCall('Supabase', 'select', 'responders', { id: session.user.id });
           const { data: responderData } = await supabase
             .from('responders')
             .select('*')

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logExternalCall } from '../lib/logger.js';
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||
@@ -59,6 +60,7 @@ async function searchLocation(addressString) {
 
   try {
     // 1. Try Geocoding API first (best for structured addresses)
+    logExternalCall('Google Maps', 'GET', 'Geocoding API', { address: addressString });
     const geoResponse = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressString)}&key=${apiKey}`
     );
@@ -69,22 +71,7 @@ async function searchLocation(addressString) {
       return {
         lat: best.geometry.location.lat,
         lng: best.geometry.location.lng,
-        formatted_address: best.formatted_address,
-      };
-    }
-
-    // 2. Fallback to Places Text Search (better for landmarks/descriptions)
-    const placesResponse = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(addressString)}&key=${apiKey}`
-    );
-    const placesData = await placesResponse.json();
-
-    if (placesData.status === 'OK' && placesData.results?.length) {
-      const best = placesData.results[0];
-      return {
-        lat: best.geometry.location.lat,
-        lng: best.geometry.location.lng,
-        formatted_address: best.formatted_address || best.name,
+        formatted_address: best.formatted_address || addressString,
       };
     }
 
@@ -137,6 +124,13 @@ export default async function handler(req, res) {
       } else if (!body.incident_id) {
         console.warn('[dispatch webhook] Missing incident_id, cannot update Supabase');
       } else {
+        logExternalCall('Supabase', 'update', 'calls', {
+          call_id: body.incident_id,
+          location_lat: locationPin.lat,
+          location_lon: locationPin.lng,
+          location_text: locationPin.formatted_address || addressString
+        });
+
         const { error } = await supabase
           .from('calls')
           .update({
@@ -155,6 +149,11 @@ export default async function handler(req, res) {
       }
     } else if (body.location_text && body.incident_id && supabase) {
       // Still update the text description even if geocoding failed
+      logExternalCall('Supabase', 'update', 'calls', {
+        call_id: body.incident_id,
+        location_text: body.location_text
+      });
+
       const { error } = await supabase
         .from('calls')
         .update({ location_text: body.location_text })

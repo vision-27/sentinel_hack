@@ -2,6 +2,7 @@ import { useConversation } from '@11labs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useCall } from '../contexts/CallContext';
+import { logExternalCall } from '../lib/logger';
 import { TranscriptBlock } from '../types';
 
 export function useElevenLabsAgent() {
@@ -29,6 +30,7 @@ export function useElevenLabsAgent() {
       // Use ElevenLabs conversation ID so transcripts and webhooks (location, etc.) land on the same call
       const callIdToUse = elevenLabsCallId || `CALL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+      logExternalCall('Supabase', 'select', 'calls', { call_id: callIdToUse });
       const { data: existing } = await supabase
         .from('calls')
         .select('id')
@@ -40,17 +42,19 @@ export function useElevenLabsAgent() {
         data = existing;
         console.log('[createSkeletonCall] Found existing call from webhook:', data.id);
       } else {
+        const insertData = {
+          call_id: callIdToUse,
+          status: 'ai_handling',
+          priority: 'medium',
+          incident_type: 'Incoming Call...',
+          location_text: 'Identifying...',
+          source_type: 'web_voice',
+          started_at: new Date().toISOString(),
+        };
+        logExternalCall('Supabase', 'insert', 'calls', insertData);
         const { data: inserted, error } = await supabase
           .from('calls')
-          .insert({
-            call_id: callIdToUse,
-            status: 'ai_handling',
-            priority: 'medium',
-            incident_type: 'Incoming Call...',
-            location_text: 'Identifying...',
-            source_type: 'web_voice',
-            started_at: new Date().toISOString(),
-          })
+          .insert(insertData)
           .select()
           .single();
 
@@ -71,6 +75,7 @@ export function useElevenLabsAgent() {
           timestamp_iso: t.timestamp_iso,
         }));
 
+        logExternalCall('Supabase', 'insert', 'transcript_blocks', { count: blocksToInsert.length });
         await supabase.from('transcript_blocks').insert(blocksToInsert);
       }
     } catch (err) {
@@ -114,6 +119,7 @@ export function useElevenLabsAgent() {
 
         if (currentCallIdRef.current) {
           try {
+            logExternalCall('Supabase', 'insert', 'transcript_blocks (incremental)', { speaker: block.speaker });
             await supabase.from('transcript_blocks').insert({
               call_id: currentCallIdRef.current,
               speaker: block.speaker,
@@ -142,6 +148,7 @@ export function useElevenLabsAgent() {
       }
 
       // EXTERNAL API CALL: ElevenLabs (Voice AI Session)
+      logExternalCall('ElevenLabs', 'startSession', 'Agent Interface', { agentId });
       const conversationId = await conversation.startSession({
         agentId,
         connectionType: 'websocket',
@@ -159,16 +166,19 @@ export function useElevenLabsAgent() {
   }, [conversation, createSkeletonCall]);
 
   const stopAgent = useCallback(async () => {
+    logExternalCall('ElevenLabs', 'endSession', 'Agent Interface');
     await conversation.endSession();
 
     if (currentCallIdRef.current) {
       try {
+        const updateData = {
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+        };
+        logExternalCall('Supabase', 'update', 'calls (close)', { id: currentCallIdRef.current, ...updateData });
         await supabase
           .from('calls')
-          .update({
-            status: 'closed',
-            closed_at: new Date().toISOString(),
-          })
+          .update(updateData)
           .eq('id', currentCallIdRef.current);
 
         // Update local context state so the UI reflects the change immediately

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { geminiModel } from '../lib/gemini';
 import { incidentService } from '../services/incidentService';
+import { logExternalCall } from '../lib/logger';
 import { TranscriptBlock } from '../types';
 
 const SYSTEM_INSTRUCTION = `
@@ -102,6 +103,7 @@ export function useSentinelAgent(transcripts: TranscriptBlock[], currentCallId: 
 
         // We use generateContent with tools
         // EXTERNAL API CALL: Google Gemini (Generative AI for data extraction)
+        logExternalCall('Google Gemini', 'generateContent', 'gemini-2.5-flash-lite', { prompt: prompt.substring(0, 500) + '...' });
         const result = await geminiModel.generateContent({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ functionDeclarations: tools as any }], // Cast for TS if needed
