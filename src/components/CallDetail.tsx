@@ -1,8 +1,8 @@
 import { CallWithContext } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { Badge, MapView } from './index';
-import { MapPin, Activity, Zap, Clock, Send, Shield, Flame, Heart } from 'lucide-react';
-import { getElapsedTime, getSeverityColor, confidenceColor, formatConfidence } from '../lib/utils';
+import { MapPin, Activity, Zap, Send, Shield, Flame, Heart } from 'lucide-react';
+import { getSeverityColor, confidenceColor, formatConfidence } from '../lib/utils';
 import LiveTranscript from './LiveTranscript';
 import ActionBar from './ActionBar';
 
@@ -92,24 +92,13 @@ export default function CallDetail({ call }: CallDetailProps) {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Victims</p>
-                  <p className="text-lg font-bold text-gray-900">{call.number_of_victims || 0}</p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Weapons</p>
-                  <Badge variant={call.weapons_present === 'yes' ? 'danger' : call.weapons_present === 'unknown' ? 'warning' : 'success'} size="sm">
-                    {call.weapons_present?.toUpperCase() || 'UNKNOWN'}
-                  </Badge>
-                </div>
-
                 <div className="col-span-2">
-                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Call Duration</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {getElapsedTime(call.started_at || call.created_at, call.closed_at)}
+                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">AI Summary</p>
+                  <p className="text-base font-medium text-gray-800 italic leading-relaxed">
+                    {call.notes || call.summary || 'Summary generating...'}
                   </p>
                 </div>
+
 
               </div>
             </CardContent>
@@ -141,7 +130,7 @@ export default function CallDetail({ call }: CallDetailProps) {
             </Card>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Card padding="md">
               <div className="text-center">
                 <Activity className="text-blue-600 mx-auto mb-2" size={24} />
@@ -160,15 +149,6 @@ export default function CallDetail({ call }: CallDetailProps) {
               </div>
             </Card>
 
-            <Card padding="md">
-              <div className="text-center">
-                <Clock className="text-green-600 mx-auto mb-2" size={24} />
-                <p className="text-xs text-gray-600 mb-1">Started</p>
-                <p className="text-xs font-bold text-gray-900">
-                  {getElapsedTime(call.started_at, call.closed_at)}
-                </p>
-              </div>
-            </Card>
           </div>
         </div>
 

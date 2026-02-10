@@ -21,14 +21,13 @@ The fields we need are:
   - Medium: Non-life-threatening but urgent requiring dispatch.
   - Low: Non-urgent, administrative, or minor issues.
 - Medical Emergency (true/false)
-- Number of Victims
-- Weapons Present (yes/no/unknown)
 - Impact Category (High/Medium/Low/None)
-- Notes (Summary)
+- Summary (Succinct, 1-2 sentences maximum)
 
 Update the incident whenever you detect new or changed information. 
 If the caller corrects themselves, update with the new information.
 Only provide the fields that you have extracted or that have changed. Do not guess fields that are not mentioned.
+The summary should be very short and accurately describe the core situation.
 `;
 
 const tools = [
@@ -48,18 +47,12 @@ const tools = [
           description: "Urgency level. MUST be one of: low, medium, high, critical."
         },
         medical_emergency: { type: "BOOLEAN", description: "Is medical attention needed?" },
-        number_of_victims: { type: "INTEGER", description: "Count of people injured/at risk" },
-        weapons_present: {
-          type: "STRING",
-          enum: ["yes", "no", "unknown"],
-          description: "Are weapons involved?"
-        },
         impact_category: {
           type: "STRING",
           enum: ["None", "Low", "Medium", "High"],
           description: "Severity of impact"
         },
-        notes: { type: "STRING", description: "Summary or extra details" }
+        summary: { type: "STRING", description: "Short, succinct summary of the incident (max 20 words)" }
       },
       required: []
     }

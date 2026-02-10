@@ -11,6 +11,7 @@ export interface EmergencyCallParams {
   number_of_victims?: number;
   weapons_present?: 'yes' | 'no' | 'unknown';
   impact_category?: 'None' | 'Low' | 'Medium' | 'High';
+  summary?: string;
   notes?: string;
 }
 
@@ -111,6 +112,7 @@ export const incidentService = {
           console.warn(`[incidentService] Invalid impact_category: ${params.impact_category}`);
         }
       }
+      if (params.summary) updateData.notes = params.summary;
       if (params.notes) updateData.notes = params.notes;
 
       // Always update confidence if we are getting data from Sentinel

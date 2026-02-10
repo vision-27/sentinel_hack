@@ -74,32 +74,6 @@
       "required": false
     },
     {
-      "id": "number_of_victims",
-      "type": "integer",
-      "value_type": "llm_prompt",
-      "description": "The number of people injured or in immediate danger. Default to 0 if none or unknown.",
-      "dynamic_variable": "",
-      "constant_value": "",
-      "enum": null,
-      "is_system_provided": false,
-      "required": false
-    },
-    {
-      "id": "weapons_present",
-      "type": "string",
-      "value_type": "llm_prompt",
-      "description": "Indicates if weapons are present at the scene.",
-      "dynamic_variable": "",
-      "constant_value": "",
-      "enum": [
-        "yes",
-        "no",
-        "unknown"
-      ],
-      "is_system_provided": false,
-      "required": false
-    },
-    {
       "id": "impact_category",
       "type": "string",
       "value_type": "llm_prompt",
@@ -128,4 +102,3 @@
     }
   ]
 }
-

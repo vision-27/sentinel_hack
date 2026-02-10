@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Call, CallWithContext } from '../types';
 import { Badge } from './Badge';
-import { getElapsedTime } from '../lib/utils';
 import { AlertCircle, Loader2, UserCheck } from 'lucide-react';
 
 interface CallListProps {
@@ -69,7 +68,6 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
                   </Badge>
                 )}
               </div>
-              <div className="text-xs text-gray-500">{getElapsedTime(call.started_at || call.created_at, call.closed_at)}</div>
             </div>
 
             {call.caller_name && (

@@ -10,7 +10,7 @@ interface ExtractedFieldsPanelProps {
 
 export default function ExtractedFieldsPanel({ call }: ExtractedFieldsPanelProps) {
   const fields = call.extracted_fields || [];
-  
+
   // Check if caller has been marked safe
   const isMarkedSafe = call.actions?.some((action) => action.action_type === 'mark_safe') || false;
 
@@ -18,10 +18,7 @@ export default function ExtractedFieldsPanel({ call }: ExtractedFieldsPanelProps
     const labels: Record<string, string> = {
       incident_type: 'Incident Type',
       location: 'Location',
-      severity: 'Impact Category',
       impact_category: 'Impact Category',
-      weapons: 'Weapons Present',
-      victims: 'Number of Victims',
       medical_info: 'Medical Information',
       threats: 'Immediate Threats',
     };
