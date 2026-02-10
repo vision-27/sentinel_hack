@@ -98,7 +98,16 @@ export const incidentService = {
           updateData.weapons_present = normalizedWeapons;
         }
       }
-      if (params.impact_category) updateData.impact_category = params.impact_category;
+      if (params.impact_category) {
+        // Normalize impact_category (None, Low, Medium, High)
+        const val = params.impact_category.toLowerCase();
+        const normalizedImpact = val.charAt(0).toUpperCase() + val.slice(1);
+        if (['None', 'Low', 'Medium', 'High'].includes(normalizedImpact)) {
+          updateData.impact_category = normalizedImpact;
+        } else {
+          console.warn(`[incidentService] Invalid impact_category: ${params.impact_category}`);
+        }
+      }
       if (params.notes) updateData.notes = params.notes;
 
       // Always update confidence if we are getting data from Sentinel

@@ -8,8 +8,8 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-console.log('[Gemini] Initializing model gemini-3.0-flash');
+console.log('[Gemini] Initializing model gemini-2.5-flash-lite');
 export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-2.5-flash-lite",
 });
 

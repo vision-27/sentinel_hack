@@ -92,7 +92,7 @@ export default function DashboardLayout() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Fetch mark_safe actions for all calls
       const callIds = (data || []).map(call => call.id);
       if (callIds.length > 0) {
@@ -101,19 +101,19 @@ export default function DashboardLayout() {
           .select('call_id, action_type')
           .in('call_id', callIds)
           .eq('action_type', 'mark_safe');
-        
+
         // Create a map of call_id -> has mark_safe action
         const markSafeMap = new Map<string, boolean>();
         (actionsData || []).forEach(action => {
           markSafeMap.set(action.call_id, true);
         });
-        
+
         // Add mark_safe flag to calls
         const callsWithMarkSafe = (data || []).map(call => ({
           ...call,
           hasMarkSafeAction: markSafeMap.has(call.id),
         }));
-        
+
         setCalls(callsWithMarkSafe);
         if (!userSelectedCallRef.current && callsWithMarkSafe.length > 0) {
           const newestCall = callsWithMarkSafe[0];
@@ -156,8 +156,8 @@ export default function DashboardLayout() {
               })
             );
 
-            if (activeCall?.id === updatedCall.id) {
-              setActiveCall({ ...activeCall, ...updatedCall });
+            if (activeCallRef.current?.id === updatedCall.id) {
+              setActiveCall({ ...activeCallRef.current, ...updatedCall });
             }
           } else if (payload.eventType === 'INSERT') {
             const newCall = payload.new as Call;
@@ -168,13 +168,13 @@ export default function DashboardLayout() {
               .eq('call_id', newCall.id)
               .eq('action_type', 'mark_safe')
               .limit(1);
-            
+
             const callWithMarkSafe = {
               ...newCall,
               hasMarkSafeAction: (actionsData || []).length > 0,
             };
             setCalls((prevCalls: Call[]) => [callWithMarkSafe, ...prevCalls]);
-            if (!userSelectedCall && activeCall?.id !== callWithMarkSafe.id) {
+            if (!userSelectedCallRef.current && activeCallRef.current?.id !== callWithMarkSafe.id) {
               handleSelectCall(callWithMarkSafe, false);
             }
           }
@@ -290,7 +290,7 @@ export default function DashboardLayout() {
 
           <div className="flex items-center gap-4">
             <VoiceAgentButton />
-            
+
             {activeCall && (
               <div className="hidden md:flex items-center gap-6 border-l border-gray-200 pl-6">
                 <div className="text-right">
@@ -331,7 +331,7 @@ export default function DashboardLayout() {
                 {highImpactAICalls.map((call) => (
                   <button
                     key={call.id}
-          onClick={() => handleSelectCall(call, true, true)}
+                    onClick={() => handleSelectCall(call, true, true)}
                     className="text-xs px-2 py-1 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded border border-orange-300 transition-colors"
                   >
                     {call.call_id} - {call.impact_category}
@@ -345,9 +345,8 @@ export default function DashboardLayout() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside
-          className={`${
-            sidebarOpen ? 'w-80' : 'w-0'
-          } bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 lg:w-80`}
+          className={`${sidebarOpen ? 'w-80' : 'w-0'
+            } bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 lg:w-80`}
         >
           <CallList calls={calls} activeCall={activeCall} onSelectCall={(call) => handleSelectCall(call, true, true)} isLoading={isLoading} />
         </aside>
@@ -364,7 +363,7 @@ export default function DashboardLayout() {
                     Create a <code className="bg-red-100 px-1 rounded">.env</code> file in the project root with:
                   </p>
                   <pre className="mt-2 bg-red-100 p-2 rounded text-xs overflow-x-auto">
-{`VITE_SUPABASE_URL=your_supabase_url
+                    {`VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key`}
                   </pre>
                 </div>

@@ -6,7 +6,7 @@ import { TranscriptBlock } from '../types';
 
 export function useElevenLabsAgent() {
   const [transcripts, setTranscripts] = useState<TranscriptBlock[]>([]);
-  const { addTranscriptBlock } = useCall();
+  const { addTranscriptBlock, updateCall } = useCall();
   const currentCallIdRef = useRef<string | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
   const transcriptsRef = useRef<TranscriptBlock[]>([]);
@@ -149,12 +149,14 @@ export function useElevenLabsAgent() {
       conversationIdRef.current = typeof conversationId === 'string' ? conversationId : String(conversationId ?? '');
       if (conversationIdRef.current) {
         console.log('[startAgent] ElevenLabs conversation ID (used as call_id for webhooks):', conversationIdRef.current);
+        // Create the skeleton call immediately so we have an ID for transcripts and duration tracking
+        await createSkeletonCall();
       }
     } catch (err) {
       console.error('Failed to start conversation:', err);
       throw err;
     }
-  }, [conversation]);
+  }, [conversation, createSkeletonCall]);
 
   const stopAgent = useCallback(async () => {
     await conversation.endSession();
@@ -168,6 +170,12 @@ export function useElevenLabsAgent() {
             closed_at: new Date().toISOString(),
           })
           .eq('id', currentCallIdRef.current);
+
+        // Update local context state so the UI reflects the change immediately
+        updateCall({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+        });
       } catch (err) {
         console.error('Failed to update call status:', err);
       }

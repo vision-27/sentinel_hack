@@ -15,15 +15,24 @@ export function getRelativeTime(isoString: string): string {
   return `${Math.floor(secondsAgo / 86400)}d ago`;
 }
 
-export function getElapsedTime(startTime: string, endTime?: string): string {
-  const end = endTime ? new Date(endTime) : new Date();
+export function getElapsedTime(startTime: string | null | undefined, endTime?: string | null): string {
+  if (!startTime) return '00:00:00';
+
   const start = new Date(startTime);
+  if (isNaN(start.getTime())) return '00:00:00';
+
+  const end = (endTime && endTime !== 'null') ? new Date(endTime) : new Date();
+  if (isNaN(end.getTime())) return '00:00:00';
+
   const secondsElapsed = Math.floor((end.getTime() - start.getTime()) / 1000);
 
-  const days = Math.floor(secondsElapsed / 86400);
-  const hours = Math.floor((secondsElapsed % 86400) / 3600);
-  const minutes = Math.floor((secondsElapsed % 3600) / 60);
-  const seconds = secondsElapsed % 60;
+  // Handle negative elapsed time (e.g. if clocks are slightly out of sync)
+  const positiveSeconds = Math.max(0, secondsElapsed);
+
+  const days = Math.floor(positiveSeconds / 86400);
+  const hours = Math.floor((positiveSeconds % 86400) / 3600);
+  const minutes = Math.floor((positiveSeconds % 3600) / 60);
+  const seconds = positiveSeconds % 60;
 
   const paddedHours = String(hours).padStart(2, '0');
   const paddedMinutes = String(minutes).padStart(2, '0');

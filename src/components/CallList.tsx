@@ -69,7 +69,7 @@ export default function CallList({ calls, activeCall, onSelectCall, isLoading }:
                   </Badge>
                 )}
               </div>
-              <div className="text-xs text-gray-500">{getElapsedTime(call.created_at, call.closed_at)}</div>
+              <div className="text-xs text-gray-500">{getElapsedTime(call.started_at || call.created_at, call.closed_at)}</div>
             </div>
 
             {call.caller_name && (

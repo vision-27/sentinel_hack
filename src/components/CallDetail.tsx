@@ -14,7 +14,7 @@ export default function CallDetail({ call }: CallDetailProps) {
   // Get dispatched services from actions
   const dispatchActions = call.actions?.filter((action) => action.action_type === 'dispatch') || [];
   const dispatchedServices: string[] = [];
-  
+
   dispatchActions.forEach((action) => {
     const dispatchTypes = (action.action_data as any)?.dispatch_types || [];
     dispatchedServices.push(...dispatchTypes);
@@ -107,7 +107,7 @@ export default function CallDetail({ call }: CallDetailProps) {
                 <div className="col-span-2">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Call Duration</p>
                   <p className="text-base font-semibold text-gray-900">
-                    {getElapsedTime(call.created_at, call.closed_at)}
+                    {getElapsedTime(call.started_at || call.created_at, call.closed_at)}
                   </p>
                 </div>
 
